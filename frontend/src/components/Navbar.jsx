@@ -21,7 +21,7 @@ const Navbar = ({ onLogoClick }) => {
   const isInternalPage = internalPages.some(path => location.pathname.startsWith(path));
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-[#f2fcf9]/80 backdrop-blur-md border-b border-[#005144]/10">
+    <nav className="fixed top-0 w-full z-50 bg-[#f2fcf9]/80 backdrop-blur-md border-b border-[#005144]/10 overflow-x-hidden">
       <div className="max-w-[1400px] mx-auto px-6">
         <div className="flex items-center h-20 relative">
           {/* Left Section: Logo / Toggle */}
@@ -114,9 +114,9 @@ const Navbar = ({ onLogoClick }) => {
             ) : (
               <Link
                 to="/auth"
-                className="bg-[#005144] hover:bg-[#003d33] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-[#005144]/20 transition-all flex items-center gap-2"
+                className="bg-[#005144] hover:bg-[#003d33] text-white px-5 py-2.5 sm:px-8 sm:py-3 rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-[#005144]/20 transition-all flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base whitespace-nowrap"
               >
-                <span className="material-symbols-outlined text-xl">person</span> Sign In
+                <span className="material-symbols-outlined text-lg sm:text-xl">person</span> Sign In
               </Link>
             )}
 

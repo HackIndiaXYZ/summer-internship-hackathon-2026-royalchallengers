@@ -59,8 +59,8 @@ function App() {
         )}
 
         <main
-          className={`flex-1 transition-all duration-300 pt-20 px-4 sm:px-6 md:px-8 ${showSidebar
-              ? (isSidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-[88px]')
+          className={`flex-1 transition-all duration-300 pt-20 ${showSidebar
+              ? `px-4 sm:px-6 md:px-8 ${isSidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-[88px]'}`
               : ''
             }`}
         >
