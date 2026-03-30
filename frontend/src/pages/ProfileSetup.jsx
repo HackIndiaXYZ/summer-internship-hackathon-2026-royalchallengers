@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { API_URL } from '../config';
 
 const ProfileSetup = ({ isModal = false, onComplete }) => {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
 
     setSaving(true);
     try {
-      await axios.post('http://localhost:3001/api/profile/setup', {
+      await axios.post(`${API_URL}/api/profile/setup`, {
         user_id: user.id,
         age: parseInt(basicInfo.age) || 25,
         gender: basicInfo.gender,

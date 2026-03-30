@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { API_URL } from '../config';
 import Footer from '../components/Footer';
 
 const ScanPage = () => {
@@ -27,7 +28,7 @@ const ScanPage = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const res = await axios.post('http://localhost:3001/api/extract-image', formData, {
+      const res = await axios.post(`${API_URL}/api/extract-image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -124,7 +125,7 @@ const ScanPage = () => {
         userId: user?.id || 'GUEST'
       };
 
-      const res = await axios.post('http://localhost:3001/api/scans', payload);
+      const res = await axios.post(`${API_URL}/api/scans`, payload);
 
       if (res.data.success) {
         toast.success(`Analysis ready for ${trimmedProduct}`, {

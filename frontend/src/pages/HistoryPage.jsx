@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { API_URL } from "../config";
 import Footer from "../components/Footer";
 
 const HistoryPage = () => {
@@ -13,7 +14,7 @@ const HistoryPage = () => {
     if (user) {
       const fetchHistory = async () => {
         try {
-          const res = await axios.get(`http://localhost:3001/api/scans/${user.id}`);
+          const res = await axios.get(`${API_URL}/api/scans/${user.id}`);
           setScans(res.data);
         } catch (err) {
           console.error("History Fetch Error:", err);

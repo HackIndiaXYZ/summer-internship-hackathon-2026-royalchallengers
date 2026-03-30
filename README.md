@@ -63,6 +63,25 @@ Combining the principles of personalized health with advanced 9-agent AI pipelin
 
 ---
 
+## 🚀 Deployment
+
+### Backend (Render / Railway)
+1. Deploy the `backend/` directory as a "Web Service".
+2. Set Environment Variables:
+   - `PORT=3001`
+   - `GEMINI_API_KEY=your_google_ai_key`
+   - `DATABASE_URL=your_db_connection_string`
+
+### Frontend (Vercel)
+1. Link your GitHub repo to Vercel.
+2. Root directory: `frontend`
+3. Framework Preset: `Vite`
+4. Set Environment Variables:
+   - **`VITE_API_URL`**: Set this to your **deployed backend URL** (e.g., `https://medoveda-backend.onrender.com`).
+5. Click **Deploy**.
+
+---
+
 ## 👨‍⚕️ Design Philosophy
 Medo-Veda follows a "Clinical Bento" design architecture, focusing on high contrast, readability, and information density without a cluttered experience. Our goal is to make healthcare data as accessible and beautiful as top-tier consumer apps.
 

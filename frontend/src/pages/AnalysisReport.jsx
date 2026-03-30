@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import { API_URL } from '../config';
 import Footer from '../components/Footer';
 
 /* ─────────── helpers ─────────── */
@@ -73,7 +74,7 @@ const AnalysisReport = () => {
     (async () => {
       if (!id) { setLoading(false); return; }
       try {
-        const r = await axios.get(`http://localhost:3001/api/scans/id/${id}`);
+        const r = await axios.get(`${API_URL}/api/scans/id/${id}`);
         if (r.data) setReport(r.data);
       } catch (e) { console.error('Fetch error:', e); }
       finally { setLoading(false); }
@@ -111,8 +112,8 @@ const AnalysisReport = () => {
   const productTitle = report?.product_name || product.name || 'Clinical Analysis';
   const vLabel = (verdict.label || 'LIMIT').toUpperCase();
   const vTheme = verdictTheme[vLabel] || verdictTheme.LIMIT;
-  const vScore = verdict.score || 5;
-  const vConfidence = verdict.confidence || 70;
+  const vScore = verdict.score || 0;
+  const vConfidence = verdict.confidence || 0;
 
   return (
     <div className="min-h-screen bg-[#F1F4F4] text-[#141d1c] antialiased pb-20" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>

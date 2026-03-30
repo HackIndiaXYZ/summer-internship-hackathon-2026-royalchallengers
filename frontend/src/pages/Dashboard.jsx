@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import { API_URL } from "../config";
 import Modal from "../components/Modal";
 import ProfileSetup from "./ProfileSetup";
 import Footer from "../components/Footer";
@@ -37,8 +38,8 @@ const Dashboard = () => {
         try {
           // Fetch real user-specific data from real-time endpoints
           const [scansRes, summaryRes] = await Promise.all([
-            axios.get(`http://localhost:3001/api/scans/${user.id}`).catch(() => ({ data: [] })),
-            axios.get(`http://localhost:3001/api/dashboard/summary/${user.id}`).catch(() => ({ data: null }))
+            axios.get(`${API_URL}/api/scans/${user.id}`).catch(() => ({ data: [] })),
+            axios.get(`${API_URL}/api/dashboard/summary/${user.id}`).catch(() => ({ data: null }))
           ]);
           
           setRealScans(scansRes.data);
