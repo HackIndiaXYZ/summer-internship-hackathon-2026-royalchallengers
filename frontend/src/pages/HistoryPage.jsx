@@ -46,7 +46,7 @@ const HistoryPage = () => {
   }, [user]);
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen tonal-layering">
+    <div className="bg-surface text-on-surface min-h-screen tonal-layering" style={{ width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
       <main className="pt-24 pb-32 px-6 max-w-7xl mx-auto">
         <header className="mb-8 md:mb-12 text-center md:text-left">
           <h2 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight mb-3">Scan History</h2>

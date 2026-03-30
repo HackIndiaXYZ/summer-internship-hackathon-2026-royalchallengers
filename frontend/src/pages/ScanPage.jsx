@@ -162,7 +162,7 @@ const ScanPage = () => {
 
 
   return (
-    <div className="min-h-screen bg-surface font-body text-on-surface selection:bg-primary-fixed-dim">
+    <div className="min-h-screen bg-surface font-body text-on-surface selection:bg-primary-fixed-dim" style={{ width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
 
       <main className="pt-20 md:pt-24 pb-32 px-4 max-w-5xl mx-auto min-h-screen">
         {/* Header Section */}
