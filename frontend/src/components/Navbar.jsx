@@ -21,12 +21,13 @@ const Navbar = ({ onLogoClick }) => {
   const isInternalPage = internalPages.some(path => location.pathname.startsWith(path));
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-[#f2fcf9]/80 backdrop-blur-md border-b border-[#005144]/10 overflow-x-hidden">
-      <div className="max-w-[1400px] mx-auto px-6">
+    <>
+      <nav className="fixed top-0 w-full z-50 bg-[#f2fcf9]/80 backdrop-blur-md border-b border-[#005144]/10">
+        <div className="max-w-[1400px] mx-auto px-6">
         <div className="flex items-center h-20 relative">
           {/* Left Section: Logo / Toggle */}
           <div className="flex items-center lg:w-[280px] flex-1 lg:flex-none">
-            <div 
+            <div
               className="flex items-center gap-2 cursor-pointer group"
               onClick={() => {
                 if (isInternalPage) onLogoClick();
@@ -39,7 +40,7 @@ const Navbar = ({ onLogoClick }) => {
               <span className="text-xl font-bold text-[#005144] tracking-tighter sm:block">MEDO VEDA</span>
             </div>
           </div>
- 
+
           {/* Center Section: Navigation Buttons */}
           <div className="hidden lg:flex flex-1 justify-center items-center gap-4">
             {navLinks.map((link) => (
@@ -132,9 +133,10 @@ const Navbar = ({ onLogoClick }) => {
           </div>
         </div>
       </div>
+    </nav>
 
-      {/* Mobile Menu Overlay */}
-      <AnimatePresence>
+    {/* Mobile Menu Overlay */}
+    <AnimatePresence>
         {isMenuOpen && (
           <>
             <motion.div
@@ -149,7 +151,7 @@ const Navbar = ({ onLogoClick }) => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed top-0 right-0 h-full w-[300px] bg-white z-[101] shadow-2xl flex flex-col"
+              className="lg:hidden fixed top-0 right-0 h-full w-[60vw] bg-white z-[1000] shadow-[0_0_50px_rgba(0,0,0,0.1)] flex flex-col"
             >
               <div className="p-8 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-12">
@@ -159,7 +161,7 @@ const Navbar = ({ onLogoClick }) => {
                     </div>
                     <span className="text-lg font-bold text-[#005144] tracking-tighter">MEDO VEDA</span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsMenuOpen(false)}
                     className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#005144]/5 text-[#005144]"
                   >
@@ -223,7 +225,7 @@ const Navbar = ({ onLogoClick }) => {
           </>
         )}
       </AnimatePresence>
-    </nav>
+    </>
   );
 };
 
