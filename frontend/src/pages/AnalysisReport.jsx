@@ -116,7 +116,7 @@ const AnalysisReport = () => {
   const vConfidence = verdict.confidence || 0;
 
   return (
-    <div className="min-h-screen bg-[#F1F4F4] text-[#141d1c] antialiased pb-20" style={{ fontFamily: "'Inter', system-ui, sans-serif", width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
+    <div className="min-h-screen bg-[#F1F4F4] text-[#141d1c] antialiased pb-20" style={{ fontFamily: "'Inter', system-ui, sans-serif", width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}>
 
       <div className="sticky top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-[#005144]/10 shadow-sm">
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-3 flex items-center justify-between">
