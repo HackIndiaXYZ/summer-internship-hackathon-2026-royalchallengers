@@ -25,7 +25,7 @@ const Navbar = ({ onLogoClick }) => {
     <>
       <nav className="fixed top-0 w-full z-50 bg-[#f2fcf9]/80 backdrop-blur-md border-b border-[#005144]/10">
         <div className="max-w-[1400px] mx-auto px-6">
-        <div className="flex items-center h-20 relative">
+        <div className="flex items-center h-24 relative">
           {/* Left Section: Logo / Toggle */}
           <div className="flex items-center lg:w-[280px] flex-1 lg:flex-none">
             <div
@@ -38,7 +38,7 @@ const Navbar = ({ onLogoClick }) => {
               <img 
                 src={logo} 
                 alt="Medo Veda" 
-                className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105" 
+                className="h-16 sm:h-20 w-auto object-contain transition-transform group-hover:scale-105" 
               />
             </div>
           </div>
@@ -161,7 +161,7 @@ const Navbar = ({ onLogoClick }) => {
                     <img 
                       src={logo} 
                       alt="Medo Veda" 
-                      className="h-10 w-auto object-contain" 
+                      className="h-14 w-auto object-contain" 
                     />
                   </div>
                   <button

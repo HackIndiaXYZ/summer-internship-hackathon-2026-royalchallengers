@@ -80,7 +80,7 @@ const AuthPage = () => {
               <img 
                 src={logo} 
                 alt="Medo Veda" 
-                className="h-12 md:h-16 w-auto object-contain transition-transform duration-700 hover:scale-110" 
+                className="h-24 md:h-32 w-auto object-contain transition-transform duration-700 hover:scale-110" 
               />
             </div>
 

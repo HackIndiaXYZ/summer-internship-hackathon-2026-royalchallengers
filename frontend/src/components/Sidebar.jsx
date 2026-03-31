@@ -55,7 +55,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <img 
                   src={logo} 
                   alt="Medo Veda" 
-                  className="h-10 w-auto object-contain" 
+                  className="h-16 w-auto object-contain" 
                 />
               </motion.div>
             ) : (
@@ -68,7 +68,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <img 
                   src={logo} 
                   alt="M" 
-                  className="h-8 w-8 object-contain" 
+                  className="h-12 w-12 object-contain" 
                 />
               </motion.div>
             )}
