@@ -62,6 +62,10 @@ function callNvidiaAPI(model, messages, maxTokens = 1000) {
           const err = new Error('Rate Limited');
           err.status = 429;
           reject(err);
+        } else if (res.statusCode === 413) {
+          const err = new Error('Payload Too Large (413)');
+          err.status = 413;
+          reject(err);
         } else {
           reject(new Error(`API Error ${res.statusCode}`));
         }
@@ -130,6 +134,16 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
         console.error(`[NVIDIA] Final attempt failed. Raw output snippet: ${raw.substring(0, 200)}`);
       }
     } catch (err) {
+      if (err.status === 413) {
+        console.error(`[NVIDIA] FATAL 413: Image payload too large. Forcing immediate text-only fallback.`);
+        // Force immediate fallback by setting attempt = retries and stripping image
+        attempt = retries;
+        if (Array.isArray(messages[1].content)) {
+          messages[1].content = messages[1].content.find(c => c.type === 'text')?.text || prompt;
+        }
+        continue; // Re-run as text-only immediately
+      }
+
       console.error(`[NVIDIA] Error on ${model.split('/')?.[1] || model}:`, err.message);
       if (err.status === 429 && attempt < retries) {
         await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); 
