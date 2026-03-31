@@ -121,7 +121,18 @@ const Dashboard = () => {
                   </span>
                 )}
               </div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight">Clinical Overview</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight">Clinical Overview</h1>
+                {user && (
+                  <button 
+                    onClick={() => setIsProfileModalOpen(true)}
+                    className="text-[10px] font-black uppercase tracking-widest text-[#005144]/60 hover:text-[#005144] transition-colors flex items-center gap-1 border border-[#005144]/10 px-2 py-1 rounded-md mt-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">edit</span>
+                    Edit Profile
+                  </button>
+                )}
+              </div>
             </div>
             <Link to="/scan" className="flex items-center justify-center gap-2 bg-[#005144] text-white px-6 md:px-8 py-3 md:py-4 rounded-xl font-bold text-base md:text-lg shadow-xl hover:scale-105 transition-all w-full md:w-auto">
               <span className="material-symbols-outlined">add_circle</span>

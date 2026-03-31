@@ -36,7 +36,18 @@ async function runAnalysisPipeline(inputData, userProfile) {
         Return JSON:
         {
           "persona": { "primaryGoal": "", "goalContext": "", "neverIgnore": [], "positiveIngredients": [] },
-          "product": { "name": "Real Product Name", "brand": "", "category": "", "nutrition": { "calories": 0, "sugar_g": 0, "fat_g": 0, "protein_g": 0, "salt_g": 0 } },
+          "product": { 
+            "name": "Real Product Name", 
+            "brand": "", 
+            "category": "", 
+            "nutrition": { 
+              "calories": "Extract or estimate (kcal)", 
+              "sugar_g": "Extract or estimate (g)", 
+              "fat_g": "Extract or estimate (g)", 
+              "protein_g": "Extract or estimate (g)", 
+              "salt_g": "Extract or estimate (g)" 
+            } 
+          },
           "rawIngredients": ["list", "of", "strings"]
         }`,
         { modelType: 'clinical', maxTokens: 1200 }
@@ -89,11 +100,11 @@ async function runAnalysisPipeline(inputData, userProfile) {
         
         Return JSON:
         {
-          "score": 0.0, 
-          "confidence": 0, 
+          "score": "A clinical health score from 0.0 to 100.0 based on user goals", 
+          "confidence": "An AI confidence score from 0 to 100 reflecting the clarity of data", 
           "label": "SAFE|LIMIT|AVOID",
-          "personalizedSummary": "Summary for user...",
-          "clinicalAnalysis": "Deep dive for report..."
+          "personalizedSummary": "Summary addressing the user's specific clinical profile...",
+          "clinicalAnalysis": "Deep dive for the technical report..."
         }`,
         { modelType: 'clinical', maxTokens: 1000 }
       );

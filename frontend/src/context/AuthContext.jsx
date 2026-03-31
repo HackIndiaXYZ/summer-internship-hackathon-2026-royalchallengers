@@ -26,9 +26,23 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
       const { user: userData, token } = response.data;
       
+      // Fetch profile to check if it's complete and restore and data
+      let profileComplete = false;
+      try {
+        const profileRes = await axios.get(`${API_URL}/api/profile/${userData.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (profileRes.data?.persona) {
+          profileComplete = true;
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile during login:', err);
+      }
+
       const sessionUser = {
         ...userData,
-        token
+        token,
+        profileComplete
       };
 
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;

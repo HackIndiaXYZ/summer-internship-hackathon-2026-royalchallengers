@@ -15,9 +15,9 @@ function getVerdictPrompt(recommendation, ingredients, personaContext) {
 
     Return JSON (decide on exactly ONE label):
     {
-      "score": 0.0,
-      "label": "RECOMMENDED", // Pick exactly ONE from: RECOMMENDED, LIMIT, or AVOID
-      "confidence": 0
+      "score": "A number from 0.0 to 100.0",
+      "label": "RECOMMENDED|LIMIT|AVOID",
+      "confidence": "A number from 0 to 100"
     }
   `;
 }
