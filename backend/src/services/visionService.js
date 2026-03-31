@@ -7,33 +7,21 @@ const { runNvidiaAgent } = require('../lib/nvidia');
  */
 async function processProductImage(base64Image) {
   // STAGE 1: High-Accuracy Raw OCR
-  const rawOcrPrompt = `You are a high-accuracy OCR system.
-  Your ONLY task is to transcribe ALL visible text from the image exactly as written.
+  const rawOcrPrompt = `You are an Expert OCR Machine v4.0 (Zero-Loss Transcription Mode).
+  Your mission is to transcribe EVERY character from the image with 100% fidelity.
   
   ---
-  ## RULES
-  * Do NOT summarize
-  * Do NOT structure into JSON
-  * Do NOT interpret meaning
-  * Do NOT clean aggressively
-  * Preserve original formatting as much as possible
+  ## CORE PRIORITIES
+  1. **Ingredients Block**: Usually small text, often listed after "Ingredients:" or "Contains:". Extract every single word.
+  2. **Nutrition Facts**: Look for tabular data or "Per 100g/serving" sections.
+  3. **Product Branding**: Extract the main brand and specific product name.
   
   ---
-  ## OUTPUT FORMAT
-  Return plain text only.
-  
-  ---
-  ## EXTRACTION REQUIREMENTS
-  * Capture ingredients section fully
-  * Capture nutrition table text
-  * Capture all claims and labels
-  * Include line breaks where visible
-  
-  ---
-  ## FINAL INSTRUCTION
-  You are NOT an AI assistant.
-  You are an OCR engine.
-  Accuracy of raw text is the only priority.`;
+  ## TECHNICAL RULES
+  * **No Summarization**: Do not omit items (e.g., if it says "Sugar, Salt (1%), Water", do not just write "Sugar").
+  * **Handle Varied Layouts**: Transcribe text even if it is vertically oriented, curved, or in very small font.
+  * **No JSON**: Just return clean, raw text preserving line breaks.
+  * **No Conversation**: Do not explain your output.`;
 
   console.log('[Vision Service] STAGE 1: Raw OCR (90B Vision)...');
   
@@ -56,19 +44,37 @@ async function processProductImage(base64Image) {
   // STAGE 2: Clinical Structuring
   console.log('[Vision Service] STAGE 2: Structuring Data (70B Clinical)...');
   
-  const structurePrompt = `You are a clinical data scientist.
-  Your task is to take the RAW OCR TEXT from a food product and map it into a clean, structured JSON object.
+  const structurePrompt = `You are a Clinical Data Intake Specialist. 
+  Your goal is to map RAW OCR DATA into a high-precision Product Schema.
   
-  RAW OCR TEXT:
+  ---
+  ## DATA SOURCE (RAW OCR):
   """
   ${rawText}
   """
   
-  RULES:
-  1. Extract "brand", "name", "ingredients" (comma-separated list), "nutrition" (object), and "claims".
-  2. If nutritional values are missing, you MUST ESTIMATE them based on the product type (per 100g). NEVER return empty or placeholder values in the JSON.
-  3. Ensure ingredients are NOT summarized. List every single one.
-  4. Fix obvious OCR typos (e.g., "5ugar" -> "Sugar").`;
+  ---
+  ## EXTRACTION PROTOCOL: "Deep Ingredient Mining"
+  1. **Identify Ingredients**: Even if the word "Ingredients" is missing, look for lists of food items (e.g., "Wheat, Sugar, Soy...").
+  2. **Format**: Return "ingredients" as a clean comma-separated string.
+  3. **Nutritional Estimation**: If numeric values are missing or garbled, use your clinical knowledge to ESTIMATE them based on the product type (e.g., if it's a cookie, estimate sugar/fat per 100g). NEVER leave null.
+  
+  ---
+  ## FEW-SHOT EXAMPLE:
+  Input: "Fresh Milk. 3.5% fat. Contains: Milk, Vitamin D."
+  Output: {
+    "brand": "Generic",
+    "name": "Fresh Milk",
+    "ingredients": "Milk, Vitamin D",
+    "nutrition": { "fat": 3.5, "calories": 60, "protein": 3.2 },
+    "claims": ["3.5% fat"]
+  }
+  
+  ---
+  ## FINAL RULES:
+  * Output ONLY raw JSON.
+  * No markdown blocks.
+  * Standardize units to metric (g, mg, kcal).`;
 
   const structuredResult = await runNvidiaAgent(
     "Structure the provided OCR text into the product schema.",

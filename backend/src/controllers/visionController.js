@@ -23,13 +23,13 @@ async function extractImageText(req, res) {
       });
     }
 
-    // Convert JSON back to the flat text format the frontend expects
-    const content = Object.entries(parsedResult)
-      .map(([k, v]) => `[${k}]: ${typeof v === 'object' ? JSON.stringify(v, null, 1) : v}`)
-      .join('\n');
-
-    console.log('[Vision Controller] Successful Extraction. Length:', content.length);
-    return res.status(200).json({ success: true, text: content });
+    console.log('[Vision Controller] Successful Extraction. Product:', parsedResult.name);
+    
+    return res.status(200).json({ 
+      success: true, 
+      data: parsedResult,
+      raw: rawText 
+    });
 
   } catch (err) {
     console.error('[Vision Controller] Critical error:', err.stack);

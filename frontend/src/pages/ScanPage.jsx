@@ -74,28 +74,20 @@ const ScanPage = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (res.data.success && res.data.text) {
-        const rawText = res.data.text.trim();
-        setFullOcrText(rawText);
+      if (res.data.success) {
+        const { data: structured, raw: rawOcr } = res.data;
         
-        // Intelligent parsing for NVIDIA Vision output format
-        let extractedProduct = '';
-        let extractedIngredients = '';
-
-        // Try standard labels first [Name], [Ingredients]
-        const nameMatch = rawText.match(/\[Name\]:\s*(.+)/i) || rawText.match(/Product:\s*(.+)/i);
-        const ingMatch = rawText.match(/\[Ingredients\]:\s*(.+)/is) || rawText.match(/Ingredients:\s*(.+)/is);
-
-        if (nameMatch) extractedProduct = nameMatch[1].split('\n')[0].trim();
-        if (ingMatch) {
-          // If using tags like [Ingredients] ... [Nutrition], stop before the next tag
-          extractedIngredients = ingMatch[1].split(/\[(Nutrition|Claims|Brand)\]/i)[0].trim();
-        }
-
+        // Populate fields directly from structured data
+        const extractedProduct = structured?.name || '';
+        const extractedIngredients = structured?.ingredients || '';
+        
+        setFullOcrText(rawOcr || '');
         if (extractedProduct) setProductName(extractedProduct);
         if (extractedIngredients) setIngredients(extractedIngredients);
         
+        // Show the manual entry tab to allow review
         setActiveMethod('manual');
+        
         toast.success(`Detected: ${extractedProduct || 'Product Details'}`, {
           id: loadingToast,
           style: {
