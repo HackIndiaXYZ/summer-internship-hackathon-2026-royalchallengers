@@ -28,16 +28,16 @@ const Navbar = ({ onLogoClick }) => {
           {/* Left Section: Logo / Toggle */}
           <div className="flex items-center lg:w-[280px] flex-1 lg:flex-none">
             <div
-              className="flex items-center gap-2 cursor-pointer group"
+              className="flex items-center gap-1.5 sm:gap-2 cursor-pointer group"
               onClick={() => {
                 if (isInternalPage) onLogoClick();
                 else navigate('/');
               }}
             >
-              <div className="w-10 h-10 bg-[#005144] rounded-xl flex items-center justify-center shadow-lg shadow-[#005144]/20 group-hover:scale-110 transition-transform">
-                <span className="text-white font-black text-xl">M</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#005144] rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-[#005144]/20 group-hover:scale-110 transition-transform flex-shrink-0">
+                <span className="text-white font-black text-lg sm:text-xl">M</span>
               </div>
-              <span className="text-xl font-bold text-[#005144] tracking-tighter sm:block">MEDO VEDA</span>
+              <span className="text-base xs:text-lg sm:text-xl font-bold text-[#005144] tracking-tighter whitespace-nowrap flex-shrink-0">MEDO VEDA</span>
             </div>
           </div>
 
@@ -65,10 +65,10 @@ const Navbar = ({ onLogoClick }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center gap-3 bg-white p-1 pr-4 rounded-2xl border border-[#005144]/10 shadow-sm hover:shadow-md transition-all"
+                  className="flex items-center gap-2 sm:gap-3 bg-white p-1 pr-3 sm:pr-4 rounded-xl sm:rounded-2xl border border-[#005144]/10 shadow-sm hover:shadow-md transition-all"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#005144] flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white text-xl">person</span>
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#005144] flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-white text-lg sm:text-xl">person</span>
                   </div>
                   <div className="text-left hidden sm:block">
                     <p className="text-sm font-bold text-[#141d1c] leading-tight">{user.name}</p>

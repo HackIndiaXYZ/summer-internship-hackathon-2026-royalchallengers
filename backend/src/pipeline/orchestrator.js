@@ -28,14 +28,15 @@ async function runAnalysisPipeline(inputData, userProfile) {
         2. Extract Product Name, Brand, Category, and Raw Ingredients from the input.
         
         STRICT RULES:
-        - NEVER return "title image extract" or placeholders.
-        - If name is unclear, use the most prominent commercial noun.
-        - Strip all OCR noise.
+        - NEVER return "title image extract", "clinical extraction", "extracted text", or placeholders.
+        - The "name" field must be the PRODUCT NAME only (e.g. "Oreo", "Coke").
+        - If name is unclear, use the most prominent commercial noun from the packaging.
+        - Strip all OCR noise and task-related descriptions.
         
         Return JSON:
         {
           "persona": { "primaryGoal": "", "goalContext": "", "neverIgnore": [], "positiveIngredients": [] },
-          "product": { "name": "Real Name", "brand": "", "category": "", "nutrition": { "calories": 0, "sugar_g": 0, "fat_g": 0, "protein_g": 0, "salt_g": 0 } },
+          "product": { "name": "Real Product Name", "brand": "", "category": "", "nutrition": { "calories": 0, "sugar_g": 0, "fat_g": 0, "protein_g": 0, "salt_g": 0 } },
           "rawIngredients": ["list", "of", "strings"]
         }`,
         { modelType: 'clinical', maxTokens: 1200 }
@@ -102,7 +103,7 @@ async function runAnalysisPipeline(inputData, userProfile) {
       // ── FINAL REPORT MAPPING ──
       const report = {
         product: {
-          name: product.name?.replace(/title image extract/gi, 'Product Analyzed') || 'Unknown Product',
+          name: product.name?.replace(/title image extract|clinical extraction|extracted text|analysis result/gi, 'Product Identified') || 'Product Identified',
           brand: product.brand || 'Detected',
           category: product.category || 'Consumer Good',
           source: inputData.type

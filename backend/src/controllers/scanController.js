@@ -94,8 +94,13 @@ async function createScan(req, res) {
     });
 
   } catch (error) {
-    console.error('[CRITICAL] Scan Controller failure:', error);
-    res.status(500).json({ error: 'System processing failure. Please try again.' });
+    console.error('[CRITICAL] Scan Controller failure:', error.message || error);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'System processing failure. Please try again.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
   }
 }
 
@@ -114,7 +119,7 @@ async function getScanHistory(req, res) {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('[Controller] getScanHistory error:', error);
+    console.error('[Controller] getScanHistory error:', error.message || error);
     res.status(500).json({ error: 'Failed to fetch scan history' });
   }
 }
@@ -128,7 +133,7 @@ async function getScanById(req, res) {
     }
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('[Controller] getScanById error:', error);
+    console.error('[Controller] getScanById error:', error.message || error);
     res.status(500).json({ error: 'Failed to fetch scan' });
   }
 }

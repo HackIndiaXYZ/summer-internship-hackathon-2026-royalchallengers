@@ -44,13 +44,13 @@ function App() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface selection:bg-primary/10 selection:text-primary" style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}>
+    <div className="min-h-screen bg-surface text-on-surface selection:bg-primary/10 selection:text-primary" style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}>
       <Navbar 
         onLogoClick={() => setIsSidebarOpen(!isSidebarOpen)} 
       />
       <Toaster position="top-right" />
 
-      <div className="flex" style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}>
+      <div className="flex" style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}>
         {showSidebar && (
           <Sidebar
             isOpen={isSidebarOpen}
@@ -63,9 +63,9 @@ function App() {
               ? `px-4 sm:px-6 md:px-8 ${isSidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-[88px]'}`
               : ''
             }`}
-          style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}
+          style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}
         >
-          <div className="w-full max-w-full overflow-x-hidden min-h-[calc(100vh-80px)]">
+          <div className="w-full max-w-full min-h-[calc(100vh-80px)]">
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<AuthPage />} />
