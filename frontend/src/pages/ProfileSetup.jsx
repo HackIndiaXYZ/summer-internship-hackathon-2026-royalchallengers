@@ -11,6 +11,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
   const { user, updateUser } = useAuth();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Step 1: Basic Details
   const [basicInfo, setBasicInfo] = useState({
@@ -26,6 +27,35 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
 
   // Step 3: Health Goals
   const [selectedGoals, setSelectedGoals] = useState([]);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      try {
+        const res = await axios.get(`${API_URL}/api/profile/${user.id}`);
+        const p = res.data?.persona;
+        if (p) {
+          setBasicInfo({
+            age: p.age?.toString() || '',
+            gender: p.gender || 'unspecified',
+            weight: p.weight?.toString() || '',
+            height: p.height?.toString() || '',
+            activityLevel: p.dietary_preferences?.[0] || ''
+          });
+          if (p.health_conditions) setSelectedConditions(p.health_conditions);
+          if (p.health_goals) setSelectedGoals(p.health_goals);
+          
+          // Optionally skip straight to dashboard if accessing via route and fully complete - but wait, 
+          // the user might be trying to "Edit Bio-Data", so we shouldn't redirect automatically.
+        }
+      } catch (err) {
+        console.error('Failed to load profile context', err);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
   const conditions = [
     { id: 'diabetes', label: 'Diabetes', icon: 'bloodtype' },
@@ -89,7 +119,9 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
         gender: basicInfo.gender,
         health_conditions: selectedConditions.filter(c => c !== 'none'),
         health_goals: selectedGoals,
-        dietary_preferences: [basicInfo.activityLevel].filter(Boolean)
+        dietary_preferences: [basicInfo.activityLevel].filter(Boolean),
+        weight: parseFloat(basicInfo.weight) || null,
+        height: parseFloat(basicInfo.height) || null
       });
 
       // Update user context with profile completion flag
@@ -118,6 +150,17 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
   };
 
   const stepLabels = ['Basic Details', 'Health Conditions', 'Clinical Goals'];
+
+  if (loadingProfile) {
+    return (
+      <div className={`flex items-center justify-center ${isModal ? 'h-[50vh]' : 'min-h-screen bg-[#f2fcf9]'}`}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-[#005144]/20 border-t-[#005144] rounded-full animate-spin"></div>
+          <span className="text-[#005144] font-bold text-sm tracking-widest uppercase">Loading Context...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={isModal ? "" : "min-h-screen bg-[#f2fcf9] font-body text-[#141d1c] antialiased"}>
