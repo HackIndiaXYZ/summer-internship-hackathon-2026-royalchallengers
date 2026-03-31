@@ -82,10 +82,23 @@ function callNvidiaAPI(model, messages, maxTokens = 1000) {
  * @param {Object} options - { modelType: 'clinical' | 'vision' | 'agility', retries: number }
  */
 async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
-  const { retries = 2, maxTokens = 2000, modelType = 'clinical' } = options;
+  const { retries = 2, maxTokens = 1000, modelType = 'clinical', image = null } = options;
+  
+  let userContent = prompt;
+  
+  // Multi-modal support for Vision models
+  if (modelType === 'vision' && image) {
+    // Ensure image is in proper data URI format if it's base64
+    const imageUrl = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
+    userContent = [
+      { type: 'text', text: prompt },
+      { type: 'image_url', image_url: { url: imageUrl } }
+    ];
+  }
+
   const messages = [
     { role: 'system', content: `${systemInstruction}\nReturn ONLY a valid JSON object. No conversational filler, no markdown blocks, no 'Here is your JSON'. START with { and END with }.` },
-    { role: 'user', content: prompt }
+    { role: 'user', content: userContent }
   ];
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -95,7 +108,14 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
     if (modelType === 'vision') model = VISION_MODEL;
     
     // Fallback to 8B on last attempt if not already using it
-    if (attempt === retries && model !== AGILITY_MODEL) model = AGILITY_MODEL;
+    if (attempt === retries && model !== AGILITY_MODEL) {
+      console.log(`[NVIDIA] Falling back to high-agility text model for attempt ${attempt + 1}`);
+      model = AGILITY_MODEL;
+      // STRIP multi-modal content for text-only model fallback
+      if (Array.isArray(messages[1].content)) {
+        messages[1].content = messages[1].content.find(c => c.type === 'text')?.text || prompt;
+      }
+    }
 
     try {
       console.log(`[NVIDIA] Executing ${model.split('/')[1] || model} (${modelType}, Attempt ${attempt + 1})...`);
@@ -104,7 +124,11 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
       
       if (parsed) return JSON.stringify(parsed);
       
-      console.warn(`[NVIDIA] Retrying: Attempt ${attempt + 1} failed JSON parse.`);
+      console.warn(`[NVIDIA] Retrying: Attempt ${attempt + 1} failed JSON parse. Raw length: ${raw.length}`);
+      if (attempt === retries) {
+        // Log the actual garbage output on last attempt for debugging
+        console.error(`[NVIDIA] Final attempt failed. Raw output snippet: ${raw.substring(0, 200)}`);
+      }
     } catch (err) {
       console.error(`[NVIDIA] Error on ${model.split('/')?.[1] || model}:`, err.message);
       if (err.status === 429 && attempt < retries) {

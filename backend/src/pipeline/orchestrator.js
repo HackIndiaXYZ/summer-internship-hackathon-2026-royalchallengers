@@ -13,117 +13,95 @@ const { getPresentationPrompt } = require('../agents/presentationAgent');
  */
 async function runAnalysisPipeline(inputData, userProfile) {
   const startTotal = Date.now();
-  const TIMEOUT_MS = 25000; // Drastic reduction for better UX
+  const TIMEOUT_MS = 25000;
   
   const pipelinePromise = (async () => {
     try {
-      console.log('[Pipeline] Starting Optimized Persona-Driven Analysis...');
+      const isImage = inputData.type === 'image';
+      console.log(`[Pipeline] Starting Analysis via ${inputData.type}...`);
 
       // ── WAVE 1: CONTEXT & IDENTITY (1 call) ──
-      // Consolidating Persona extraction and Product Identity to save 15s.
+      // Use VISION_MODEL if input is an image, CLINICAL otherwise.
       const contextRaw = await runNvidiaAgent(
-        `Input Content: ${inputData.content}`,
+        `Input Content: ${isImage ? 'Extracted from image' : inputData.content}`,
         `You are a Clinical Data Architect.
-        1. Extract the User's Primary Goal & Context based on: ${JSON.stringify(userProfile)}
-        2. Extract Product Name, Brand, Category, and Raw Ingredients from the input.
+        User Profile: ${JSON.stringify(userProfile)}
+        
+        TASK:
+        1. Extract the User's Primary Goal & Profile Context.
+        2. Identify the Product Name, Brand, Category, and Ingredients.
+        3. Extract or Estimate precisely (calories, sugar, fat, protein, salt per 100g).
         
         STRICT RULES:
-        - NEVER return "title image extract", "clinical extraction", "extracted text", or placeholders.
-        - The "name" field must be the PRODUCT NAME only (e.g. "Oreo", "Coke").
-        - If name is unclear, use the most prominent commercial noun from the packaging.
-        - Strip all OCR noise and task-related descriptions.
+        - NEVER use placeholders like "extracted text".
+        - Identify the TRUE commercial product name.
         
         Return JSON:
         {
-          "persona": { "primaryGoal": "", "goalContext": "", "neverIgnore": [], "positiveIngredients": [] },
+          "persona": { "primaryGoal": "", "goalContext": "" },
           "product": { 
-            "name": "Real Product Name", 
-            "brand": "", 
-            "category": "", 
-            "nutrition": { 
-              "calories": "Extract or estimate (kcal)", 
-              "sugar_g": "Extract or estimate (g)", 
-              "fat_g": "Extract or estimate (g)", 
-              "protein_g": "Extract or estimate (g)", 
-              "salt_g": "Extract or estimate (g)" 
-            } 
+            "name": "", "brand": "", "category": "", 
+            "nutrition": { "calories": "", "sugar_g": "", "fat_g": "", "protein_g": "", "salt_g": "" } 
           },
           "rawIngredients": ["list", "of", "strings"]
         }`,
-        { modelType: 'clinical', maxTokens: 1200 }
+        { 
+          modelType: isImage ? 'vision' : 'clinical', 
+          maxTokens: 1000,
+          image: isImage ? inputData.content : null 
+        }
       );
       
       const context = extractJSON(contextRaw) || {};
-      const personaContext = context.persona || { primaryGoal: "General Health", goalContext: "Standard assessment." };
+      const personaContext = context.persona || { primaryGoal: "General Health" };
       const product = context.product || { name: 'Unknown Product' };
       const rawIngredients = context.rawIngredients || [];
 
-      console.log(`[Pipeline] Wave 1 Complete. Goal: ${personaContext.primaryGoal}. Product: ${product.name}`);
+      console.log(`[Pipeline] Wave 1 Done. Product Identified: ${product.name}`);
 
-      // ── WAVE 2: MULTI-AGENT CLINICAL ANALYSIS (Parallel - 4 agents) ──
-      // Running Ingredients, Claims, Recommendations, and Alternatives in one parallel burst.
+      // ── WAVE 2: CLINICAL CONSENSUS (Parallel - 3 agents) ──
+      // Merged Verdict synthesis into Recommendation to eliminate Wave 3.
       const [ingredRaw, claimRaw, recoRaw, altRaw] = await Promise.all([
         runNvidiaAgent(
           `Ingredients: ${JSON.stringify(rawIngredients)}`,
           getIngredientPrompt(rawIngredients, personaContext),
-          { modelType: 'clinical', maxTokens: 1000 }
+          { modelType: 'agility', maxTokens: 800 }
         ),
         runNvidiaAgent(
-          `Content: ${inputData.content}\nIngredients: ${JSON.stringify(rawIngredients)}`,
+          `Product Content: ${inputData.content}\nIngredients: ${JSON.stringify(rawIngredients)}`,
           getClaimPrompt([], rawIngredients, personaContext),
+          { modelType: 'agility', maxTokens: 800 }
+        ),
+        runNvidiaAgent(
+          `Analyze Product: ${JSON.stringify(product)}\nIngredients: ${JSON.stringify(rawIngredients)}`,
+          getRecommendationPrompt(product, rawIngredients, personaContext),
           { modelType: 'clinical', maxTokens: 1000 }
         ),
         runNvidiaAgent(
-          `Product: ${JSON.stringify(product)}\nIngredients: ${JSON.stringify(rawIngredients)}`,
-          getRecommendationPrompt(product, rawIngredients, personaContext),
-          { modelType: 'clinical', maxTokens: 800 }
-        ),
-        runNvidiaAgent(
-          `Ingredients: ${JSON.stringify(rawIngredients)}`,
+          `Alternatives for: ${product.category}\nIngredients: ${JSON.stringify(rawIngredients)}`,
           getAlternativesPrompt(rawIngredients, personaContext),
-          { modelType: 'clinical', maxTokens: 800 }
+          { modelType: 'agility', maxTokens: 800 }
         )
       ]);
 
-      const ingredData = extractJSON(ingredRaw) || { ingredients: [], topConcerns: [] };
+      const ingredData = extractJSON(ingredRaw) || { ingredients: [] };
       const claimData = extractJSON(claimRaw) || { claims: [] };
-      const recoData = extractJSON(recoRaw) || { stance: "LIMIT", strategy: { intake: "Minimal", summary: "Cautious approach." } };
+      const recoData = extractJSON(recoRaw) || { stance: "LIMIT", score: 50 };
       const altData = extractJSON(altRaw) || { alternatives: [] };
-
-      // ── WAVE 3: VERDICT & PRESENTATION (1 call) ──
-      // Merging final summary and scoring to save another 15s.
-      const finalRaw = await runNvidiaAgent(
-        `Analysis Result: ${JSON.stringify(recoData)}`,
-        `Synthesize the final clinical verdict and personalized summary.
-        User Goal: ${personaContext.primaryGoal}
-        Stance: ${recoData.stance}
-        
-        Return JSON:
-        {
-          "score": "A clinical health score from 0.0 to 100.0 based on user goals", 
-          "confidence": "An AI confidence score from 0 to 100 reflecting the clarity of data", 
-          "label": "SAFE|LIMIT|AVOID",
-          "personalizedSummary": "Summary addressing the user's specific clinical profile...",
-          "clinicalAnalysis": "Deep dive for the technical report..."
-        }`,
-        { modelType: 'clinical', maxTokens: 1000 }
-      );
-
-      const finalData = extractJSON(finalRaw) || { score: 5.0, label: recoData.stance };
 
       // ── FINAL REPORT MAPPING ──
       const report = {
         product: {
-          name: product.name?.replace(/title image extract|clinical extraction|extracted text|analysis result/gi, 'Product Identified') || 'Product Identified',
-          brand: product.brand || 'Detected',
-          category: product.category || 'Consumer Good',
+          name: product.name || 'Detected Product',
+          brand: product.brand || 'Known Brand',
+          category: product.category || 'Food/Beverage',
           source: inputData.type
         },
         verdict: {
-          label: (finalData.label || recoData.stance || 'LIMIT').toUpperCase(),
-          reason: finalData.clinicalAnalysis || recoData.strategy?.summary || 'Assessment complete.',
-          score: parseFloat(finalData.score) || 5.0,
-          confidence: parseInt(finalData.confidence) || 85
+          label: (recoData.stance || 'LIMIT').toUpperCase(),
+          reason: recoData.clinicalAnalysis || recoData.strategy?.summary || 'Analysis complete.',
+          score: parseFloat(recoData.score) || 50.0,
+          confidence: parseInt(recoData.confidence) || 85
         },
         highlights: [
           ...(ingredData.topConcerns || []),
@@ -140,18 +118,18 @@ async function runAnalysisPipeline(inputData, userProfile) {
           ...product.nutrition,
           risk_flags: (ingredData.topConcerns || []).map(c => ({ type: c, severity: 'medium' }))
         },
-        claim_vs_reality: claimData.claims,
+        claim_vs_reality: claimData.claims || [],
         personalized_advice: {
           intake: recoData.strategy?.intake || 'Standard serving',
           frequency: recoData.strategy?.frequency || 'Occasional',
-          summary: finalData.personalizedSummary || recoData.strategy?.summary || 'Proceed with caution.',
+          summary: recoData.personalizedSummary || recoData.strategy?.summary || 'Proceed with caution.',
           warnings: recoData.strategy?.warnings || []
         },
-        alternatives: altData.alternatives,
+        alternatives: altData.alternatives || [],
         personalization: personaContext
       };
 
-      console.log(`[Pipeline] SUCCESS in ${Date.now() - startTotal}ms for Goal: ${personaContext.primaryGoal}`);
+      console.log(`[Pipeline] COMPLETED in ${Date.now() - startTotal}ms`);
       return { report };
 
     } catch (error) {
