@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.jpeg';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -76,10 +77,11 @@ const AuthPage = () => {
           >
             {/* Branding Logo */}
             <div className="flex items-center gap-4 mb-16 group cursor-default">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-2xl group-hover:rotate-[15deg] transition-transform duration-700">
-                <span className="text-[#005144] font-black text-2xl">M</span>
-              </div>
-              <span className="text-2xl font-bold text-white tracking-tighter">MEDO VEDA</span>
+              <img 
+                src={logo} 
+                alt="Medo Veda" 
+                className="h-12 md:h-16 w-auto object-contain transition-transform duration-700 hover:scale-110" 
+              />
             </div>
 
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-white tracking-tight leading-tight mb-6 shadow-sm">

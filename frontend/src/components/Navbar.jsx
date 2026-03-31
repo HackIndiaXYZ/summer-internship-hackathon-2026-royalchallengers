@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.jpeg';
 
 const Navbar = ({ onLogoClick }) => {
   const { user, logout } = useAuth();
@@ -34,10 +35,11 @@ const Navbar = ({ onLogoClick }) => {
                 else navigate('/');
               }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#005144] rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-[#005144]/20 group-hover:scale-110 transition-transform flex-shrink-0">
-                <span className="text-white font-black text-lg sm:text-xl">M</span>
-              </div>
-              <span className="text-base xs:text-lg sm:text-xl font-bold text-[#005144] tracking-tighter whitespace-nowrap flex-shrink-0">MEDO VEDA</span>
+              <img 
+                src={logo} 
+                alt="Medo Veda" 
+                className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105" 
+              />
             </div>
           </div>
 
@@ -156,10 +158,11 @@ const Navbar = ({ onLogoClick }) => {
               <div className="p-8 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-12">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-[#005144] rounded-lg flex items-center justify-center">
-                      <span className="text-white font-black text-sm">M</span>
-                    </div>
-                    <span className="text-lg font-bold text-[#005144] tracking-tighter">MEDO VEDA</span>
+                    <img 
+                      src={logo} 
+                      alt="Medo Veda" 
+                      className="h-10 w-auto object-contain" 
+                    />
                   </div>
                   <button
                     onClick={() => setIsMenuOpen(false)}

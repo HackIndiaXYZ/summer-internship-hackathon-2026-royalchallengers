@@ -4,7 +4,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '../../.env') }
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 
 // Optimized model routing for high-speed performance (<20s target)
-const CLINICAL_MODEL = 'meta/llama-3.1-8b-instruct'; // Switched to 8B for extreme speed
+const CLINICAL_MODEL = 'meta/llama-3.1-70b-instruct'; // Upgraded from 8B for higher extraction reliability
 const VISION_MODEL = 'meta/llama-3.2-90b-vision-instruct'; // Keep high-accuracy for OCR
 const AGILITY_MODEL = 'meta/llama-3.1-8b-instruct'; 
 
@@ -46,7 +46,7 @@ function callNvidiaAPI(model, messages, maxTokens = 1000) {
         'Authorization': `Bearer ${NVIDIA_API_KEY}`,
         'Content-Length': Buffer.byteLength(payload)
       },
-      timeout: 30000 // 30s timeout
+      timeout: 120000 // 120s timeout for high-reasoning stability
     };
 
     const req = https.request(options, (res) => {

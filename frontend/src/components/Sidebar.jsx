@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import logo from '../assets/logo.jpeg';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
@@ -51,10 +52,11 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-3"
               >
-                <div className="w-10 h-10 bg-[#005144] rounded-xl flex items-center justify-center shadow-lg shadow-[#005144]/20">
-                  <span className="text-white font-black text-xl">M</span>
-                </div>
-                <span className="text-xl font-black text-[#005144] tracking-tighter">MEDO VEDA</span>
+                <img 
+                  src={logo} 
+                  alt="Medo Veda" 
+                  className="h-10 w-auto object-contain" 
+                />
               </motion.div>
             ) : (
               <motion.div
@@ -62,9 +64,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="w-12 h-12 bg-[#005144] rounded-2xl flex items-center justify-center shadow-lg shadow-[#005144]/20"
               >
-                <span className="text-white font-black text-xl">M</span>
+                <img 
+                  src={logo} 
+                  alt="M" 
+                  className="h-8 w-8 object-contain" 
+                />
               </motion.div>
             )}
           </AnimatePresence>

@@ -9,63 +9,85 @@ const { getPresentationPrompt } = require('../agents/presentationAgent');
 
 /**
  * Medo Veda Goal-Aware AI Pipeline
- * Orchestrates 7 specialized agents for personalized clinical reasoning.
+ * Orchestrates specialized agents for personalized clinical reasoning.
+ * Optimized for performance and reliability.
  */
 async function runAnalysisPipeline(inputData, userProfile) {
   const startTotal = Date.now();
-  const TIMEOUT_MS = 25000;
-  
-  const pipelinePromise = (async () => {
-    try {
-      const isImage = inputData.type === 'image';
-      console.log(`[Pipeline] Starting Analysis via ${inputData.type}...`);
+  const TIMEOUT_MS = 60000; // Increased to 60s for industrial reliability
+  const isImage = inputData.type === 'image';
 
-      // ── WAVE 1: CONTEXT & IDENTITY (1 call) ──
-      // Use VISION_MODEL if input is an image, CLINICAL otherwise.
-      const contextRaw = await runNvidiaAgent(
-        `Input Content: ${isImage ? 'Extracted from image' : inputData.content}`,
-        `You are a Clinical Data Architect.
-        User Profile: ${JSON.stringify(userProfile)}
-        
-        INPUT ANALYSIS:
-        - Content: ${inputData.content} 
-        (Note: Content may contain PRODUCT_NAME, INGREDIENTS_LIST, and RAW_EXTRACTION_CONTEXT from OCR).
+  try {
+    console.log(`[Pipeline] Starting Analysis via ${inputData.type}...`);
 
-        TASK:
-        1. Extract the User's Primary Goal & Profile Context.
-        2. Identify the Product Name, Brand, Category, and Ingredients.
-        3. NUTRITION: Extract or Estimate precisely (calories, sugar_g, fat_g, protein_g, salt_g per 100g).
-        
-        STRICT RULES:
-        - If nutritional data is missing from the input, you MUST INFER/ESTIMATE it based on the ingredients list and product category. NEVER return empty values or 0 if the product has calories.
-        - Ensure all nutritional values are purely NUMERIC strings (e.g. "450", not "450 kcal").
-        - Identify the TRUE commercial product name from the context.
-        
-        Return JSON:
-        {
-          "persona": { "primaryGoal": "", "goalContext": "" },
-          "product": { 
-            "name": "", "brand": "", "category": "", 
-            "nutrition": { "calories": "", "sugar_g": "", "fat_g": "", "protein_g": "", "salt_g": "" } 
-          },
-          "rawIngredients": ["list", "of", "strings"]
-        }`,
-        { 
-          modelType: isImage ? 'vision' : 'clinical', 
-          maxTokens: 1000,
-          image: isImage ? inputData.content : null 
-        }
-      );
+    // ── WAVE 1: CONTEXT & IDENTITY ──
+    const contextRaw = await runNvidiaAgent(
+      `Input Content: ${isImage ? 'Extracted from image' : inputData.content}`,
+      `You are a Clinical Data Architect.
+      User Profile: ${JSON.stringify(userProfile)}
       
-      const context = extractJSON(contextRaw) || {};
-      const personaContext = context.persona || { primaryGoal: "General Health" };
-      const product = context.product || { name: 'Unknown Product' };
-      const rawIngredients = context.rawIngredients || [];
+      INPUT ANALYSIS:
+      - Content: ${inputData.content} 
+      (Note: Content may contain PRODUCT_NAME, INGREDIENTS_LIST, and RAW_EXTRACTION_CONTEXT from OCR).
 
-      console.log(`[Pipeline] Wave 1 Done. Product Identified: ${product.name}`);
+      TASK:
+      1. Extract the User's Primary Goal & Profile Context.
+      2. Identify the Product Name, Brand, Category, and Ingredients.
+      3. NUTRITION: Extract or Estimate precisely (calories, sugar_g, fat_g, protein_g, salt_g per 100g).
+      
+      STRICT RULES:
+      - If nutritional data is missing, you MUST INFER/ESTIMATE it (per 100g). NEVER return empty or placeholder values.
+      - Ensure all nutritional values are purely NUMERIC strings (e.g. "450", not "450 kcal"). Use "0" ONLY if it actually has zero (like water).
+      
+      Return JSON:
+      {
+        "persona": { "primaryGoal": "", "goalContext": "" },
+        "product": { 
+          "name": "", "brand": "", "category": "", 
+          "nutrition": { "calories": "0", "sugar_g": "0", "fat_g": "0", "protein_g": "0", "salt_g": "0" } 
+        },
+        "rawIngredients": ["list", "of", "strings"]
+      }`,
+      { 
+        modelType: isImage ? 'vision' : 'clinical', 
+        maxTokens: 1000,
+        image: isImage ? inputData.content : null 
+      }
+    );
 
-      // ── WAVE 2: CLINICAL CONSENSUS (Parallel - 3 agents) ──
-      // Merged Verdict synthesis into Recommendation to eliminate Wave 3.
+    const context = extractJSON(contextRaw) || {};
+    if (!context.product) throw new Error('WAVE1_EXTRACTION_FAILED');
+
+    const personaContext = context.persona || { primaryGoal: "General Health" };
+    const product = context.product || { name: 'Unknown Product' };
+    const rawIngredients = context.rawIngredients || [];
+
+    console.log(`[Pipeline] Wave 1 Done. Product Identified: ${product.name}`);
+
+    // Create a High-Confidence Base Report using Wave 1 Data (Nutrition/Identity)
+    // This serves as the fallback if clinical analysis (Wave 2) is slow.
+    const baseReport = {
+      product: {
+        name: product.name || 'Detected Product',
+        brand: product.brand || 'Known Brand',
+        category: product.category || 'Food/Beverage',
+        source: inputData.type
+      },
+      verdict: { label: "ANALYZING", reason: "Identifying specific risk markers...", score: 50.0, confidence: 60 },
+      highlights: ["Initial screening complete"],
+      ingredient_analysis: rawIngredients.map(name => ({ name, risk: 'medium', reason: 'Analyzing...', function: 'Component' })),
+      nutrition_analysis: {
+        ...product.nutrition,
+        risk_flags: []
+      },
+      claim_vs_reality: [],
+      personalized_advice: { summary: "Preliminary analysis ready. Deep clinical scan in progress..." },
+      alternatives: [],
+      personalization: personaContext
+    };
+
+    // ── WAVE 2: CLINICAL CONSENSUS (Parallel - 4 agents) ──
+    const runWave2 = (async () => {
       const [ingredRaw, claimRaw, recoRaw, altRaw] = await Promise.all([
         runNvidiaAgent(
           `Ingredients: ${JSON.stringify(rawIngredients)}`,
@@ -94,14 +116,8 @@ async function runAnalysisPipeline(inputData, userProfile) {
       const recoData = extractJSON(recoRaw) || { stance: "LIMIT", score: 50 };
       const altData = extractJSON(altRaw) || { alternatives: [] };
 
-      // ── FINAL REPORT MAPPING ──
-      const report = {
-        product: {
-          name: product.name || 'Detected Product',
-          brand: product.brand || 'Known Brand',
-          category: product.category || 'Food/Beverage',
-          source: inputData.type
-        },
+      return {
+        product: baseReport.product,
         verdict: {
           label: (recoData.stance || 'LIMIT').toUpperCase(),
           reason: recoData.clinicalAnalysis || recoData.strategy?.summary || 'Analysis complete.',
@@ -133,41 +149,40 @@ async function runAnalysisPipeline(inputData, userProfile) {
         alternatives: altData.alternatives || [],
         personalization: personaContext
       };
+    })();
 
-      console.log(`[Pipeline] COMPLETED in ${Date.now() - startTotal}ms`);
-      return { report };
+    // Calculate remaining time for Wave 2
+    const timeUsed = Date.now() - startTotal;
+    const remainingTime = Math.max(1, TIMEOUT_MS - timeUsed);
 
-    } catch (error) {
-      console.error('PIPELINE STEP FAILURE:', error);
-      throw error;
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), remainingTime)
+    );
+
+    try {
+      const finalReport = await Promise.race([runWave2, timeoutPromise]);
+      console.log(`[Pipeline] FULL COMPLETED in ${Date.now() - startTotal}ms`);
+      return { report: finalReport };
+    } catch (err) {
+      if (err.message === 'TIMEOUT') {
+        console.warn(`[Pipeline] Wave 2 Timed out after ${TIMEOUT_MS}ms. Returning Wave 1 data.`);
+        return { report: baseReport, partial: true };
+      }
+      throw err;
     }
-  })();
 
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('TIMEOUT')), TIMEOUT_MS)
-  );
-
-  try {
-    return await Promise.race([pipelinePromise, timeoutPromise]);
-  } catch (err) {
-    if (err.message === 'TIMEOUT') {
-      console.warn('[Pipeline] TIMEOUT EXCEEDED - Return partial if possible');
-      // Fallback response for extreme latency
-      return { 
-        timeout: true,
-        report: {
-          product: { name: "Analysis Optimized", brand: "System", category: "Timeout Fallback", source: inputData.type },
-          verdict: { label: "LIMIT", reason: "The analysis is processing slower than usual. Please check back in history in 1 minute.", score: 5.0, confidence: 50 },
-          highlights: ["System processing delay"],
-          ingredient_analysis: [],
-          nutrition_analysis: { risk_flags: [] },
-          claim_vs_reality: [],
-          personalized_advice: { summary: "Analysis taking longer than 25s. System is still working in background." },
-          alternatives: []
-        }
-      };
-    }
-    throw err;
+  } catch (error) {
+    console.error('PIPELINE FAILURE:', error);
+    // Ultimate fallback if Wave 1 fails or other crash
+    return {
+      success: false,
+      report: {
+        product: { name: "System Busy", brand: "Retry", category: "Error", source: inputData.type },
+        verdict: { label: "ERROR", reason: "Critical system delay. Please try a simpler entry.", score: 0, confidence: 0 },
+        nutrition_analysis: { calories: "----", sugar_g: "----", risk_flags: [] },
+        personalized_advice: { summary: "The AI is currently under high load. Please try again in 30 seconds." }
+      }
+    };
   }
 }
 

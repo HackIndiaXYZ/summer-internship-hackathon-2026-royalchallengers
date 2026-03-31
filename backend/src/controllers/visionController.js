@@ -49,7 +49,7 @@ async function extractImageText(req, res) {
 
     // Convert JSON back to the flat text format the frontend expects for simple parsing
     const content = typeof parsedResult === 'object' 
-      ? Object.entries(parsedResult).map(([k, v]) => `[${k}]: ${v}`).join('\n')
+      ? Object.entries(parsedResult).map(([k, v]) => `[${k}]: ${typeof v === 'object' ? JSON.stringify(v, null, 1) : v}`).join('\n')
       : String(parsedResult);
 
     console.log('[Vision Controller] Extraction Successful. Chars:', content.length);
