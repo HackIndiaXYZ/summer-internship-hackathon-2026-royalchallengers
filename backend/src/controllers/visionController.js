@@ -14,22 +14,16 @@ async function extractImageText(req, res) {
     const systemPrompt = `You are a clinical-grade OCR and visual evidence specialist.
     Extract ALL data from this product label with 100% fidelity.
     
-    Tasks:
-    1. Transcribe the BRAND and exact PRODUCT NAME.
-    2. Transcribe the ENTIRE INGREDIENT LIST (even if small). Do not skip any chemical names or numbers.
-    3. Identify any NUTRITIONAL VALUES (Calories, Sugar, Salt, Fat, Protein).
-    4. Identify any CLAIMS made on the label (e.g. "Natural", "High Protein").
-    
-    Format:
-    [Brand]: ...
-    [Name]: ...
-    [Ingredients]: ...
-    [Nutrition]: ...
-    [Claims]: ...
-    
-    Important: If the image is blurry, do your absolute best to infer the chemical names. Do not hallucinate, but do not ignore text.`;
+    You must return a JSON object with these keys:
+    "brand": The company or brand name.
+    "name": The clinical or commercial name of the product.
+    "ingredients": The full list of ingredients exactly as printed.
+    "nutrition": The full nutrition facts table (Calories, Fats, Protein, Sugar, Sodium, etc.) including units and serving size if available.
+    "claims": Any health or marketing claims identified.
 
-    const userPrompt = `Analyze this image and return the extracted product details including brand, name, and ingredients.`;
+    Important: If the image is blurry, extract whatever fragments are visible. Do not hallucinate chemical names but do not omit numeric data.`;
+
+    const userPrompt = `Transcribe the brand, product name, ingredients list, and the entire nutritional table from this product image into the specified JSON format.`;
 
     console.log('[Vision Controller] Delegating OCR to Unified NVIDIA Agent...');
 

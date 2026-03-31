@@ -207,13 +207,13 @@ const AnalysisReport = () => {
               </div>
 
               <div className="flex-row gap-4 flex-shrink-0 bg-[#005144]/5 p-3 rounded-[24px] hidden sm:flex">
-                <CircularGauge value={vScore} max={10} label="Score" color={vTheme.color} size={120} />
-                <CircularGauge value={vConfidence} max={100} label="Confidence" color="#005144" size={120} />
+                <CircularGauge value={vScore} max={10} label="Health Grade" color={vTheme.color} size={110} />
+                <CircularGauge value={vConfidence} max={100} label="Evidence" color="#005144" size={110} />
               </div>
               
               <div className="flex sm:hidden w-full justify-around bg-[#005144]/5 p-4 rounded-3xl gap-4">
-                <CircularGauge value={vScore} max={10} label="Score" color={vTheme.color} size={88} />
-                <CircularGauge value={vConfidence} max={100} label="Confidence" color="#005144" size={88} />
+                <CircularGauge value={vScore} max={10} label="Health Grade" color={vTheme.color} size={88} />
+                <CircularGauge value={vConfidence} max={100} label="Evidence" color="#005144" size={88} />
               </div>
             </div>
             
@@ -231,17 +231,17 @@ const AnalysisReport = () => {
               <span className="material-symbols-outlined text-lg text-[#16A34A]">analytics</span> Real-Time Nutritional Profile
             </h3>
             
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 relative z-10">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 relative z-10">
               {[
-                { label: 'Calories', val: nutrition.calories, unit: 'kcal', icon: 'bolt', color: '#EF4444' },
-                { label: 'Sugar', val: nutrition.sugar_g, unit: 'g', icon: 'cookie', color: '#F59E0B' },
-                { label: 'Total Fat', val: nutrition.fat_g, unit: 'g', icon: 'opacity', color: '#8B5CF6' },
-                { label: 'Protein', val: nutrition.protein_g, unit: 'g', icon: 'fitness_center', color: '#3B82F6' }
+                { label: 'Energy', val: nutrition.calories || '—', unit: 'kcal', icon: 'bolt', color: '#EF4444' },
+                { label: 'Sugar', val: nutrition.sugar_g || '—', unit: 'g', icon: 'cookie', color: '#F59E0B' },
+                { label: 'Total Fat', val: nutrition.fat_g || '—', unit: 'g', icon: 'opacity', color: '#8B5CF6' },
+                { label: 'Protein', val: nutrition.protein_g || '—', unit: 'g', icon: 'fitness_center', color: '#3B82F6' }
               ].map((n, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 flex flex-col items-center text-center">
-                  <span className="material-symbols-outlined text-[12px] md:text-sm mb-3" style={{ color: n.color }}>{n.icon}</span>
-                  <span className="text-2xl md:text-3xl font-black tracking-tighter leading-none mb-1">{n.val}</span>
-                  <span className="text-[7px] md:text-[8px] font-black uppercase tracking-widest text-white/40">{n.label} ({n.unit})</span>
+                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-3 md:p-5 flex flex-col items-center text-center">
+                  <span className="material-symbols-outlined text-[10px] md:text-sm mb-2" style={{ color: n.color }}>{n.icon}</span>
+                  <span className="text-xl md:text-3xl font-black tracking-tighter leading-none mb-1">{n.val}</span>
+                  <span className="text-[6px] md:text-[8px] font-black uppercase tracking-widest text-white/40">{n.label} ({n.unit})</span>
                 </div>
               ))}
             </div>

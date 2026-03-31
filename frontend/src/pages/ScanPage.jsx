@@ -13,6 +13,7 @@ const ScanPage = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [productName, setProductName] = useState('');
   const [ingredients, setIngredients] = useState('');
+  const [fullOcrText, setFullOcrText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState(null);
   const navigate = useNavigate();
@@ -75,21 +76,27 @@ const ScanPage = () => {
 
       if (res.data.success && res.data.text) {
         const rawText = res.data.text.trim();
+        setFullOcrText(rawText);
         
         // Intelligent parsing for NVIDIA Vision output format
-        let extractedProduct = 'Image Extraction';
-        let extractedIngredients = rawText;
+        let extractedProduct = '';
+        let extractedIngredients = '';
 
-        const productMatch = rawText.match(/Product:\s*(.+)/i);
-        const ingredientsMatch = rawText.match(/Ingredients:\s*(.+)/is);
+        // Try standard labels first [Name], [Ingredients]
+        const nameMatch = rawText.match(/\[Name\]:\s*(.+)/i) || rawText.match(/Product:\s*(.+)/i);
+        const ingMatch = rawText.match(/\[Ingredients\]:\s*(.+)/is) || rawText.match(/Ingredients:\s*(.+)/is);
 
-        if (productMatch) extractedProduct = productMatch[1].split('\n')[0].trim();
-        if (ingredientsMatch) extractedIngredients = ingredientsMatch[1].trim();
+        if (nameMatch) extractedProduct = nameMatch[1].split('\n')[0].trim();
+        if (ingMatch) {
+          // If using tags like [Ingredients] ... [Nutrition], stop before the next tag
+          extractedIngredients = ingMatch[1].split(/\[(Nutrition|Claims|Brand)\]/i)[0].trim();
+        }
 
-        setProductName(extractedProduct);
-        setIngredients(extractedIngredients);
+        if (extractedProduct) setProductName(extractedProduct);
+        if (extractedIngredients) setIngredients(extractedIngredients);
+        
         setActiveMethod('manual');
-        toast.success(`Detected: ${extractedProduct}`, {
+        toast.success(`Detected: ${extractedProduct || 'Product Details'}`, {
           id: loadingToast,
           style: {
             background: '#005144',
@@ -162,7 +169,9 @@ const ScanPage = () => {
 
       const payload = {
         type,
-        content: type === 'text' ? `Product: ${trimmedProduct}. Ingredients: ${trimmedIngredients}` : content,
+        content: type === 'text' 
+          ? `PRODUCT_NAME: ${trimmedProduct}\nINGREDIENTS_LIST: ${trimmedIngredients}${fullOcrText ? `\nRAW_EXTRACTION_CONTEXT: ${fullOcrText}` : ''}` 
+          : content,
         userId: user?.id || 'GUEST'
       };
 

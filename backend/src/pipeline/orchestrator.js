@@ -27,14 +27,19 @@ async function runAnalysisPipeline(inputData, userProfile) {
         `You are a Clinical Data Architect.
         User Profile: ${JSON.stringify(userProfile)}
         
+        INPUT ANALYSIS:
+        - Content: ${inputData.content} 
+        (Note: Content may contain PRODUCT_NAME, INGREDIENTS_LIST, and RAW_EXTRACTION_CONTEXT from OCR).
+
         TASK:
         1. Extract the User's Primary Goal & Profile Context.
         2. Identify the Product Name, Brand, Category, and Ingredients.
-        3. Extract or Estimate precisely (calories, sugar, fat, protein, salt per 100g).
+        3. NUTRITION: Extract or Estimate precisely (calories, sugar_g, fat_g, protein_g, salt_g per 100g).
         
         STRICT RULES:
-        - NEVER use placeholders like "extracted text".
-        - Identify the TRUE commercial product name.
+        - If nutritional data is missing from the input, you MUST INFER/ESTIMATE it based on the ingredients list and product category. NEVER return empty values or 0 if the product has calories.
+        - Ensure all nutritional values are purely NUMERIC strings (e.g. "450", not "450 kcal").
+        - Identify the TRUE commercial product name from the context.
         
         Return JSON:
         {
