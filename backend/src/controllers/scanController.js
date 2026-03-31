@@ -51,7 +51,20 @@ async function createScan(req, res) {
 
     // 6. Determine overall verdict for DB indexing
     const overallVerdict = (report.verdict?.label || 'LIMIT').toLowerCase();
-    const productName = report.product?.name || (typeof content === 'string' ? content : 'Unknown Product');
+    
+    // Clean up product name from OCR noise
+    let productName = report.product?.name || 'Unknown Product';
+    productName = productName
+      .replace(/title image extract/gi, 'Product')
+      .replace(/extracted text/gi, 'Product')
+      .replace(/\[Name\]:/gi, '')
+      .replace(/\[Brand\]:/gi, '')
+      .replace(/^[\s\W]+|[\s\W]+$/g, '') // Trim non-word chars from ends
+      .trim();
+    
+    if (!productName || productName.length < 2) {
+      productName = type === 'image' ? 'Product Scan' : 'Text Analysis';
+    }
 
     // 7. Persist to DB
     const insertResult = await query(
@@ -64,7 +77,7 @@ async function createScan(req, res) {
         JSON.stringify(report),
         overallVerdict,
         productName.slice(0, 200),
-        report.verdict.score || 5.0
+        report.verdict?.score || 5.0
       ]
     );
 
