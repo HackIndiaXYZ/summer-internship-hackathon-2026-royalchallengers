@@ -45,8 +45,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-surface text-on-surface selection:bg-primary/10 selection:text-primary" style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}>
-      <Navbar 
-        onLogoClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+      <Navbar
+        onLogoClick={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <Toaster position="top-right" />
 
@@ -60,8 +60,8 @@ function App() {
 
         <main
           className={`flex-1 transition-all duration-300 pt-20 min-w-0 ${showSidebar
-              ? `px-4 sm:px-6 md:px-8 ${isSidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-[88px]'}`
-              : ''
+            ? `px-4 sm:px-6 md:px-8 ${isSidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-[88px]'}`
+            : ''
             }`}
           style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}
         >

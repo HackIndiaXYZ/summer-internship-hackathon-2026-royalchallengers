@@ -83,10 +83,16 @@ function callNvidiaAPI(model, messages, maxTokens = 1000) {
  * Run an AI agent with intelligent model routing.
  * @param {string} prompt - The user prompt
  * @param {string} systemInstruction - System instruction
- * @param {Object} options - { modelType: 'clinical' | 'vision' | 'agility', retries: number }
+ * @param {Object} options - { modelType: 'clinical' | 'vision' | 'agility', retries: number, ensureJSON: boolean }
  */
 async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
-  const { retries = 2, maxTokens = 1000, modelType = 'clinical', image = null } = options;
+  const { 
+    retries = 2, 
+    maxTokens = 2000, 
+    modelType = 'clinical', 
+    image = null,
+    ensureJSON = true 
+  } = options;
   
   let userContent = prompt;
   
@@ -100,8 +106,12 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
     ];
   }
 
+  const systemSuffix = ensureJSON 
+    ? "\nIMPORTANT: Your response MUST be a single, valid JSON object. No conversational filler, no markdown blocks, no 'Here is your JSON'. START with { and END with }."
+    : "";
+
   const messages = [
-    { role: 'system', content: `${systemInstruction}\nReturn ONLY a valid JSON object. No conversational filler, no markdown blocks, no 'Here is your JSON'. START with { and END with }.` },
+    { role: 'system', content: `${systemInstruction}${systemSuffix}` },
     { role: 'user', content: userContent }
   ];
 
@@ -124,13 +134,14 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
     try {
       console.log(`[NVIDIA] Executing ${model.split('/')[1] || model} (${modelType}, Attempt ${attempt + 1})...`);
       const raw = await callNvidiaAPI(model, messages, maxTokens);
-      const parsed = extractJSON(raw);
       
+      if (!ensureJSON) return raw;
+
+      const parsed = extractJSON(raw);
       if (parsed) return JSON.stringify(parsed);
       
       console.warn(`[NVIDIA] Retrying: Attempt ${attempt + 1} failed JSON parse. Raw length: ${raw.length}`);
       if (attempt === retries) {
-        // Log the actual garbage output on last attempt for debugging
         console.error(`[NVIDIA] Final attempt failed. Raw output snippet: ${raw.substring(0, 200)}`);
       }
     } catch (err) {
@@ -148,11 +159,11 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
       if (err.status === 429 && attempt < retries) {
         await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); 
       } else if (attempt === retries) {
-        return JSON.stringify({ fallback: true, error: err.message });
+        return ensureJSON ? JSON.stringify({ fallback: true, error: err.message }) : `Error: ${err.message}`;
       }
     }
   }
-  return JSON.stringify({ fallback: true });
+  return ensureJSON ? JSON.stringify({ fallback: true }) : "Error: Maximum retries exceeded";
 }
 
 // Aliasing for compatibility with legacy code

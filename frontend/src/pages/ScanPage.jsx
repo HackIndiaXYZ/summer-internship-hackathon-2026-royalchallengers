@@ -30,7 +30,7 @@ const ScanPage = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const maxDim = 1200;
+          const maxDim = 1000;
 
           if (width > height) {
             if (width > maxDim) {
@@ -51,7 +51,7 @@ const ScanPage = () => {
           canvas.toBlob((blob) => {
             // Return compressed jpeg
             resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
-          }, 'image/jpeg', 0.7);
+          }, 'image/jpeg', 0.8);
         };
       };
     });

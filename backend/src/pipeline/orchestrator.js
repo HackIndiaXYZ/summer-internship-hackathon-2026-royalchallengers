@@ -1,4 +1,5 @@
 const { runNvidiaAgent, extractJSON } = require('../lib/nvidia');
+const { processProductImage } = require('../services/visionService');
 const { getPersonaPrompt } = require('../agents/personaAgent');
 const { getIngredientPrompt } = require('../agents/ingredientAgent');
 const { getClaimPrompt } = require('../agents/claimAgent');
@@ -21,41 +22,52 @@ async function runAnalysisPipeline(inputData, userProfile) {
     console.log(`[Pipeline] Starting Analysis via ${inputData.type}...`);
 
     // ── WAVE 1: CONTEXT & IDENTITY ──
-    const contextRaw = await runNvidiaAgent(
-      `Input Content: ${isImage ? 'Extracted from image' : inputData.content}`,
-      `You are a Clinical Data Architect.
-      User Profile: ${JSON.stringify(userProfile)}
-      
-      INPUT ANALYSIS:
-      - Content: ${inputData.content} 
-      (Note: Content may contain PRODUCT_NAME, INGREDIENTS_LIST, and RAW_EXTRACTION_CONTEXT from OCR).
+    let context;
+    if (isImage) {
+      console.log('[Pipeline] Image detected. Running High-Accuracy Vision Service...');
+      const { structured } = await processProductImage(inputData.content);
+      context = {
+        persona: { primaryGoal: "General Health", goalContext: "Image-based direct scan" },
+        product: structured,
+        rawIngredients: Array.isArray(structured.ingredients) ? structured.ingredients : (structured.ingredients?.split(',') || [])
+      };
+    } else {
+      const contextRaw = await runNvidiaAgent(
+        `Input Content: ${inputData.content}`,
+        `You are a Clinical Data Architect.
+        User Profile: ${JSON.stringify(userProfile)}
+        
+        INPUT ANALYSIS:
+        - Content: ${inputData.content} 
+        (Note: Content may contain PRODUCT_NAME, INGREDIENTS_LIST, and RAW_EXTRACTION_CONTEXT from OCR).
 
-      TASK:
-      1. Extract the User's Primary Goal & Profile Context.
-      2. Identify the Product Name, Brand, Category, and Ingredients.
-      3. NUTRITION: Extract or Estimate precisely (calories, sugar_g, fat_g, protein_g, salt_g per 100g).
-      
-      STRICT RULES:
-      - If nutritional data is missing, you MUST INFER/ESTIMATE it (per 100g). NEVER return empty or placeholder values.
-      - Ensure all nutritional values are purely NUMERIC strings (e.g. "450", not "450 kcal"). Use "0" ONLY if it actually has zero (like water).
-      
-      Return JSON:
-      {
-        "persona": { "primaryGoal": "", "goalContext": "" },
-        "product": { 
-          "name": "", "brand": "", "category": "", 
-          "nutrition": { "calories": "0", "sugar_g": "0", "fat_g": "0", "protein_g": "0", "salt_g": "0" } 
-        },
-        "rawIngredients": ["list", "of", "strings"]
-      }`,
-      { 
-        modelType: isImage ? 'vision' : 'clinical', 
-        maxTokens: 1000,
-        image: isImage ? inputData.content : null 
-      }
-    );
+        TASK:
+        1. Extract the User's Primary Goal & Profile Context.
+        2. Identify the Product Name, Brand, Category, and Ingredients.
+        3. NUTRITION: Extract or Estimate precisely (calories, sugar_g, fat_g, protein_g, salt_g per 100g).
+        
+        STRICT RULES:
+        - If nutritional data is missing, you MUST INFER/ESTIMATE it (per 100g). NEVER return empty or placeholder values.
+        - Ensure all nutritional values are purely NUMERIC strings (e.g. "450", not "450 kcal").
+        
+        Return JSON:
+        {
+          "persona": { "primaryGoal": "", "goalContext": "" },
+          "product": { 
+            "name": "", "brand": "", "category": "", 
+            "nutrition": { "calories": "0", "sugar_g": "0", "fat_g": "0", "protein_g": "0", "salt_g": "0" } 
+          },
+          "rawIngredients": ["list", "of", "strings"]
+        }`,
+        { 
+          modelType: 'clinical',
+          maxTokens: 1200
+        }
+      );
+      context = extractJSON(contextRaw) || {};
+    }
 
-    const context = extractJSON(contextRaw) || {};
+    if (!context.product) throw new Error('WAVE1_EXTRACTION_FAILED');
     if (!context.product) throw new Error('WAVE1_EXTRACTION_FAILED');
 
     const personaContext = context.persona || { primaryGoal: "General Health" };

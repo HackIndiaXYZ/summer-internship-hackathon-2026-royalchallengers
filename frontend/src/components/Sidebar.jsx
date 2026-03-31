@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import logo from '../assets/logo.jpeg';
+import logo from '../assets/logo.png';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
@@ -39,7 +39,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           } ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Logo / Toggle Header */}
-        <div 
+        <div
           className={`flex items-center cursor-pointer hover:opacity-80 transition-opacity ${isOpen ? 'justify-between mb-12' : 'justify-center mt-8 mb-12'} w-full`}
           onClick={toggleSidebar}
         >
@@ -52,11 +52,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-3"
               >
-                <img 
-                  src={logo} 
-                  alt="Medo Veda" 
-                  className="h-16 w-auto object-contain" 
-                />
+                <img src={logo} alt="Medo Veda" className="h-16 w-auto object-contain" />
               </motion.div>
             ) : (
               <motion.div
@@ -65,11 +61,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
               >
-                <img 
-                  src={logo} 
-                  alt="M" 
-                  className="h-12 w-12 object-contain" 
-                />
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <img src={logo} alt="M" className="h-8 w-auto object-contain" />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -84,8 +78,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 key={item.name}
                 to={item.path}
                 className={`flex items-center gap-4 p-4 rounded-2xl transition-all group relative ${isActive
-                    ? 'bg-[#005144] text-white shadow-lg shadow-[#005144]/15'
-                    : 'text-[#3e4946] hover:bg-[#005144]/5'
+                  ? 'bg-[#005144] text-white shadow-lg shadow-[#005144]/15'
+                  : 'text-[#3e4946] hover:bg-[#005144]/5'
                   } ${!isOpen && 'justify-center px-0'}`}
               >
                 <span className={`material-symbols-outlined text-2xl ${isActive ? 'text-white' : 'text-[#005144]'}`}>

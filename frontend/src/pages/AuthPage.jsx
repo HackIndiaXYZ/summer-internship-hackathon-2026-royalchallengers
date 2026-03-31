@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
+import logo from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
-import logo from '../assets/logo.jpeg';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,7 +21,7 @@ const AuthPage = () => {
   React.useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001'}/health`)
       .then(() => console.log('[System] Pipeline Pre-warmed'))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleSubmit = async (e) => {
@@ -55,14 +55,14 @@ const AuthPage = () => {
       <section className="relative w-full md:w-1/2 min-h-[40vh] md:min-h-screen flex items-center justify-center p-8 md:p-16 overflow-hidden">
         {/* The Medo Veda Hero Image */}
         <div className="absolute inset-0 z-0">
-          <img 
-            src="/images/auth-hero.png" 
-            alt="Clinical Intelligence" 
+          <img
+            src="/images/auth-hero.png"
+            alt="Clinical Intelligence"
             className="w-full h-full object-cover"
           />
           {/* Emerald Clinical Overlay - Adjusting transparency for 'top notch' look */}
           <div className="absolute inset-0 bg-[#005144]/85 mix-blend-multiply backdrop-blur-[2px]"></div>
-          
+
           {/* Narrative Grain / Noise Overlay */}
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
@@ -77,17 +77,13 @@ const AuthPage = () => {
           >
             {/* Branding Logo */}
             <div className="flex items-center gap-4 mb-16 group cursor-default">
-              <img 
-                src={logo} 
-                alt="Medo Veda" 
-                className="h-24 md:h-32 w-auto object-contain transition-transform duration-700 hover:scale-110" 
-              />
+              <img src={logo} alt="Medo Veda" className="h-24 md:h-32 w-auto object-contain" />
             </div>
 
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-white tracking-tight leading-tight mb-6 shadow-sm">
               Evidence-Based Clinical Decision Support.
             </h1>
-            
+
             <p className="text-[#a5e9d9] text-base md:text-lg leading-relaxed mb-12 opacity-80 max-w-sm">
               High-fidelity intelligence for clinical researchers, ensuring precision and safety in patient data processing.
             </p>
@@ -211,7 +207,7 @@ const AuthPage = () => {
             >
               {/* Shimmer Effect */}
               <div className="absolute inset-0 w-1/3 h-full bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 -translate-x-[200%] group-hover:translate-x-[300%] transition-transform duration-1000"></div>
-              
+
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
@@ -231,7 +227,7 @@ const AuthPage = () => {
               onClick={() => setIsLogin(!isLogin)}
               className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3e4946] hover:text-[#005144] transition-colors inline-flex items-center gap-2 group"
             >
-              {isLogin ? "New Clinical Practitioner?" : "Existing Medical Researcher?"} 
+              {isLogin ? "New Clinical Practitioner?" : "Existing Medical Researcher?"}
               <span className="text-[#005144] group-hover:underline underline-offset-4">{isLogin ? "Join Network" : "Sign In Portal"}</span>
             </button>
           </div>
