@@ -13,16 +13,16 @@ const getDashboardSummary = async (req, res) => {
     const scansResult = await query('SELECT * FROM scans WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10', [userId]);
     const scans = scansResult.rows;
 
-    // 3. Calculate Health Score (Basic logic: % of safe products)
-    let healthScore = 80; // Baseline
+    // 3. Calculate Goal-Aware Health Score
+    let healthScore = 75; // Baseline
     if (scans.length > 0) {
-      const safeCount = scans.filter(s => s.overall_verdict === 'safe').length;
+      const recommendedCount = scans.filter(s => s.overall_verdict === 'recommended' || s.overall_verdict === 'safe').length;
       const avoidCount = scans.filter(s => s.overall_verdict === 'avoid').length;
       const total = scans.length;
 
-      // Adjusted score: safe gives +5, avoid gives -10, limit gives -2
-      const base = 75;
-      const adjustment = (safeCount * 5) - (avoidCount * 12) - ((total - safeCount - avoidCount) * 4);
+      // Goal-weighted adjustment
+      const base = 70;
+      const adjustment = (recommendedCount * 8) - (avoidCount * 15) - ((total - recommendedCount - avoidCount) * 5);
       healthScore = Math.min(Math.max(base + adjustment, 20), 100);
     }
 

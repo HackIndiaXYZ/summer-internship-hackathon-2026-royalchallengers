@@ -19,6 +19,11 @@ try {
       console.log('Database Connected Successfully');
     }
   });
+
+  // Connection Warmer: Query every 45s to prevent Neon serverless cold starts (drastic reduction in login latency)
+  setInterval(() => {
+    pool.query('SELECT 1').catch(() => {});
+  }, 45000);
 } catch (e) {
   console.error('Fatal Pool Creation Error:', e.message);
   pool = {

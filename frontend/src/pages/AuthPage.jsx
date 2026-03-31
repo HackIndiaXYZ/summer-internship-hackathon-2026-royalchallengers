@@ -15,6 +15,14 @@ const AuthPage = () => {
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
+  // HEURISTIC WARMUP: Ping the backend health endpoint on mount to wake up 
+  // serverless DB connections while the user starts typing.
+  React.useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:3001'}/health`)
+      .then(() => console.log('[System] Pipeline Pre-warmed'))
+      .catch(() => {});
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');

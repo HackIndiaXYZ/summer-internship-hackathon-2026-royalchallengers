@@ -108,12 +108,22 @@ const AnalysisReport = () => {
   const highlights = data.highlights || [];
   const advice = data.personalized_advice || {};
   const alternatives = data.alternatives || [];
+  const personalization = data.personalization || {};
 
   const productTitle = report?.product_name || product.name || 'Clinical Analysis';
   const vLabel = (verdict.label || 'LIMIT').toUpperCase();
   const vTheme = verdictTheme[vLabel] || verdictTheme.LIMIT;
   const vScore = verdict.score || 0;
   const vConfidence = verdict.confidence || 0;
+
+  // Personalization Display Logic
+  const primaryGoal = personalization.primary_goal 
+    ? personalization.primary_goal.replace(/_/g, ' ').toUpperCase() 
+    : 'GENERAL HEALTH';
+  
+  const conditionsText = personalization.health_conditions?.length > 0 
+    ? personalization.health_conditions.join(', ').toUpperCase() 
+    : 'NONE DETECTED';
 
   return (
     <div className="min-h-screen bg-[#F1F4F4] text-[#141d1c] antialiased pb-20" style={{ fontFamily: "'Inter', system-ui, sans-serif", width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}>
@@ -131,7 +141,37 @@ const AnalysisReport = () => {
         </div>
       </div>
 
-      <main className="max-w-[1400px] mx-auto px-6 lg:px-10 pt-10">
+      <main className="max-w-[1400px] mx-auto px-6 lg:px-10 pt-6">
+
+        {/* ── 0. PERSONALIZATION HEADER (Goal Awareness) ── */}
+        <motion.div {...fade(0)} className="mb-6 flex flex-wrap items-center justify-between gap-4 bg-white/40 backdrop-blur-md rounded-2xl p-4 border border-[#005144]/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#005144] flex items-center justify-center text-white shadow-inner">
+              <span className="material-symbols-outlined text-xl">person</span>
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[.3em] text-[#005144]/40 leading-none mb-1">Clinical Context</p>
+              <h3 className="text-sm font-black text-[#141d1c] tracking-tight truncate max-w-[200px] md:max-w-none">
+                Goal: <span className="text-[#005144] ml-1">{primaryGoal}</span>
+              </h3>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+             <div className="hidden sm:block text-right">
+                <p className="text-[8px] font-black uppercase tracking-[.3em] text-[#5f6965]/40 leading-none mb-1">Medical Conditions</p>
+                <div className="flex items-center gap-1 justify-end">
+                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                   <p className="text-[10px] font-bold text-[#3e4946]">{conditionsText}</p>
+                </div>
+             </div>
+             <div className="h-8 w-px bg-[#005144]/10 hidden sm:block" />
+             <div className="bg-[#005144]/5 px-3 py-2 rounded-xl flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm text-[#005144]">fingerprint</span>
+                <span className="text-[10px] font-black text-[#005144] uppercase tracking-widest">Protocol v4.2.1</span>
+             </div>
+          </div>
+        </motion.div>
 
         {/* ── 1. PRODUCT SUMMARY BANNER (Black border) ── */}
         <motion.section {...fade(0)} className="mb-8">
@@ -161,9 +201,13 @@ const AnalysisReport = () => {
                 </div>
               </div>
 
-              <div className="flex flex-row gap-4 flex-shrink-0 bg-[#005144]/5 p-3 rounded-[24px]">
-                <CircularGauge value={vScore} max={10} label="Score" color={vTheme.color} size={window.innerWidth < 400 ? 80 : window.innerWidth < 768 ? 90 : 120} />
-                <CircularGauge value={vConfidence} max={100} label="Confidence" color="#005144" size={window.innerWidth < 400 ? 80 : window.innerWidth < 768 ? 90 : 120} />
+              <div className="flex-row gap-4 flex-shrink-0 bg-[#005144]/5 p-3 rounded-[24px] hidden sm:flex">
+                <CircularGauge value={vScore} max={10} label="Score" color={vTheme.color} size={window.innerWidth < 400 ? 80 : 120} />
+                <CircularGauge value={vConfidence} max={100} label="Confidence" color="#005144" size={window.innerWidth < 400 ? 80 : 120} />
+              </div>
+              <div className="flex sm:hidden w-full justify-around bg-[#005144]/5 p-4 rounded-3xl mt-4">
+                <CircularGauge value={vScore} max={10} label="Score" color={vTheme.color} size={90} />
+                <CircularGauge value={vConfidence} max={100} label="Confidence" color="#005144" size={90} />
               </div>
             </div>
             
@@ -269,15 +313,27 @@ const AnalysisReport = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
             {ingredients.map((item, idx) => {
               const rs = riskStyle[item.risk] || riskStyle.low;
+              const isGoalRelevant = item.classification === 'PERSONAL_HIT' || item.classification === 'PERSONAL_MISS';
               return (
                 <motion.div
                   key={idx}
                   {...fade(0.15 + (idx * 0.05))}
-                  className="rounded-2xl p-5 border-2 bg-white hover:shadow-lg transition-all group relative flex flex-col w-full h-full"
+                  className={`rounded-2xl p-5 border-2 bg-white hover:shadow-lg transition-all group relative flex flex-col w-full h-full ${isGoalRelevant ? 'ring-2 ring-primary/20 bg-primary/[0.02]' : ''}`}
                   style={{ borderColor: rs.border }}
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <h4 className="font-black text-sm md:text-base text-[#141d1c] leading-tight group-hover:text-[#005144] transition-colors">{item.name}</h4>
+                    <div>
+                      <h4 className="font-black text-sm md:text-base text-[#141d1c] leading-tight group-hover:text-[#005144] transition-colors">{item.name}</h4>
+                      {item.classification && (
+                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mt-1 inline-block ${
+                          item.classification === 'PERSONAL_HIT' ? 'bg-green-100 text-green-700' : 
+                          item.classification === 'PERSONAL_MISS' ? 'bg-red-100 text-red-700' : 
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {item.classification.replace('_', ' ')}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest whitespace-nowrap border bg-white"
                       style={{ color: rs.text, borderColor: rs.border }}>{rs.badge}</span>
                   </div>
@@ -291,6 +347,89 @@ const AnalysisReport = () => {
             })}
           </div>
         </div>
+
+        {/* ── 5. MARKETING CLAIMS vs REALITY (Optimized Bento Grid) ── */}
+        {claimsArr.length > 0 && (
+          <div className="mb-20">
+            <h3 className="text-[10px] font-black uppercase tracking-[.3em] text-[#005144]/40 mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg">verified</span> Marketing Deception Interface
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {claimsArr.map((claim, idx) => {
+                const style = claimStyle[claim.status?.toLowerCase()] || claimStyle.misleading;
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="bg-white rounded-3xl p-8 border-2 border-black/5 hover:border-black/10 transition-all shadow-sm flex flex-col relative overflow-hidden group"
+                  >
+                    <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                      <span className="material-symbols-outlined text-8xl leading-none">{style.icon}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mb-6 relative z-10">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-inner" style={{ backgroundColor: style.bg, color: style.color }}>
+                        <span className="material-symbols-outlined">{style.icon}</span>
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full" style={{ backgroundColor: style.bg, color: style.color }}>
+                        {style.label}
+                      </span>
+                    </div>
+                    <h4 className="text-lg font-black text-[#141d1c] mb-4 leading-tight relative z-10">"{claim.claim}"</h4>
+                    <div className="mt-auto pt-6 border-t border-black/5 relative z-10">
+                      <p className="text-sm font-bold text-[#5f6965] leading-relaxed">
+                        <span className="text-[10px] font-black uppercase tracking-[.2em] text-[#005144] block mb-2 opacity-40">Clinical Reality Check</span>
+                        {claim.reality}
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── 6. STRATEGIC ALTERNATIVES (Horizontal Bento) ── */}
+        {alternatives.length > 0 && (
+          <div className="mb-20">
+            <h3 className="text-[10px] font-black uppercase tracking-[.3em] text-[#005144]/40 mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg">swap_horiz</span> Goal-Aware Swaps & Alternatives
+            </h3>
+            <div className="bg-[#141d1c] rounded-[40px] p-8 md:p-12 relative overflow-hidden border-[4px] border-[#005144]/10 shadow-2xl">
+              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#005144]/20 to-transparent" />
+              <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {alternatives.map((alt, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 hover:bg-white/10 transition-all group flex flex-col h-full"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-[#005144] flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
+                      <span className="material-symbols-outlined text-2xl">eco</span>
+                    </div>
+                    <h4 className="text-xl font-black text-white mb-2 tracking-tight group-hover:text-primary transition-colors">{alt.name}</h4>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#005144] mb-4">{alt.brand || 'Premium Choice'}</p>
+                    <p className="text-sm font-medium text-white/50 leading-relaxed italic flex-1">"{alt.reason}"</p>
+                    <div className="mt-6 pt-4 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <span className="text-[9px] font-black text-[#005144] uppercase tracking-widest flex items-center gap-2">Goal Compatibility: High <div className="w-1.5 h-1.5 rounded-full bg-green-500" /></span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <div className="mt-12 flex justify-center relative z-10">
+                <Link to="/scan" className="bg-primary text-white px-10 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-105 transition-all flex items-center gap-3">
+                  <span className="material-symbols-outlined text-xl">biotech</span>
+                  Analyze These Alternatives
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </div>

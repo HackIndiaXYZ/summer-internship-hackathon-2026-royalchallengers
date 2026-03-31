@@ -6,7 +6,7 @@ const { query } = require('../db/pool');
 const register = async (req, res) => {
   const { email, password, name } = req.body;
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 8); // Reduced to 8 rounds for 4x faster auth while maintaining security
     const result = await query(
       'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
       [email, hashedPassword, name]
@@ -20,8 +20,9 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
+  const startTime = Date.now();
   const { email, password } = req.body;
-  console.log(`[Auth] Login attempt for: ${email} with password: ${password}`);
+  console.log(`[Auth] Login attempt for: ${email}`); // Masked password for security
 
   // Developer Bypass for rapid testing
   if (email === 'dev@medoveda.com' && password === 'ClinicalPilot2026') {
@@ -40,19 +41,24 @@ const login = async (req, res) => {
     }
     
     const user = result.rows[0];
+    
+    console.time('[Auth] Bcrypt Compare');
     const isMatch = await bcrypt.compare(password, user.password_hash);
+    console.timeEnd('[Auth] Bcrypt Compare');
+
     if (!isMatch) {
       console.warn(`[Auth] Password mismatch for: ${email}`);
       return res.status(401).json({ error: 'Invalid clinical credentials.' });
     }
     
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'fallback-secret');
-    console.log(`[Auth] Login successful for: ${email}`);
+    console.log(`[Clinical Protocol] Authorized Specialist: ${email} (Latency: ${Date.now() - startTime}ms)`);
     res.json({ 
       user: { id: user.id, email: user.email, name: user.name }, 
       token 
     });
   } catch (err) {
+    console.error(`[Clinical Error] Authentication disrupted: ${err.message}`);
     res.status(500).json({ error: 'Server error' });
   }
 };
