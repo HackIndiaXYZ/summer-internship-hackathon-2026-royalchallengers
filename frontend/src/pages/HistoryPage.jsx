@@ -113,11 +113,11 @@ const HistoryPage = () => {
                       </span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-[#141d1c] tracking-tight mb-0.5">
-                        {scan.input_method.toUpperCase()} SCAN
+                      <h3 className="text-lg font-black text-[#141d1c] tracking-tight mb-0.5 line-clamp-1 max-w-[200px]">
+                        {scan.product_name || `${scan.input_method.toUpperCase()} SCAN`}
                       </h3>
                       <p className="text-[10px] text-[#005144] font-bold uppercase tracking-widest">
-                        ID: {scan.id.slice(0, 8)}
+                        ID: {scan.id.slice(0, 8)} | {scan.input_method.toUpperCase()}
                       </p>
                     </div>
                   </div>

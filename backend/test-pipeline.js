@@ -1,62 +1,66 @@
-require('dotenv').config();
 const { runAnalysisPipeline } = require('./src/pipeline/orchestrator');
+const { query } = require('./src/db/pool');
 
-const testInput = {
-  type: 'text',
-  content: 'Product: Maggi 2-Minute Noodles. Ingredients: Wheat flour (Maida), Salt, Edible vegetable oil (Palm), Thickeners (508), Acidity regulators (501), Colour (150d). Taste maker: Maltodextrin, Hydrolysed groundnut protein, Starch, Salt, Sugar, Spices.'
-};
+async function testPipeline() {
+  console.log('--- MEDO VEDA PIPELINE TEST ---');
+  
+  // Real-world "Manual Text" example: Maggi Masala Noodles
+  const testInput = {
+    type: 'text',
+    content: `
+      Product: Maggi 2-Minute Noodles (Masala)
+      Ingredients: Refined wheat flour (Maida), Palm oil, Salt, Wheat gluten, Mineral (Calcium carbonate), Thickeners (508 & 412), Acidity regulators (501(i) & 500(i)) and Humectant (451(i)).
+      Masala Tastemaker: Hydrolysed groundnut protein, Mixed spices (23.6%) (Toasted onion powder, Coriander powder, Turmeric powder, Garlic powder, Cumin powder, Aniseed powder, Ginger powder, Fenugreek powder, Black pepper powder, Clove powder, Green cardamom powder, Nutmeg powder), Noodle powder, Sugar, Edible starch, Palm oil, Thickener (508), Caramel salt mix, Acidity regulators (330 & 500(ii)), Flavour enhancer (635) and Mineral (Ferric pyrophosphate).
+      Contains Wheat, Nut, Soy & Milk.
+    `,
+    metadata: { source: 'manual_entry' }
+  };
 
-const testPersona = {
-  riskFactors: ['Type 2 Diabetes'],
-  goals: ['Reduce Sugar Intake', 'Manage Diabetes'],
-  restrictions: []
-};
+  const mockUserProfile = {
+    age: 30,
+    gender: 'male',
+    health_conditions: ['Hypertension', 'High Sodium Sensitivity'],
+    health_goals: ['Weight Loss', 'Heart Health'],
+    weight: 85,
+    height: 180
+  };
 
-console.log('🚀 Starting full 9-agent pipeline test...');
-console.log('Input:', testInput.content.slice(0, 80) + '...');
-console.log('Persona:', JSON.stringify(testPersona));
-console.log('\n--- Pipeline Running ---\n');
+  console.log('[Test] Input:', testInput.content.slice(0, 100) + '...');
+  console.log('[Test] User Profile:', JSON.stringify(mockUserProfile));
+  
+  const start = Date.now();
+  try {
+    const result = await runAnalysisPipeline(testInput, mockUserProfile);
+    const duration = Date.now() - start;
 
-const start = Date.now();
-
-runAnalysisPipeline(testInput, testPersona)
-  .then(result => {
-    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    console.log(`\n✅ Pipeline complete in ${elapsed}s`);
+    console.log('\n--- TEST RESULTS ---');
+    console.log(`Latency: ${(duration / 1000).toFixed(2)}s (Target: <20s)`);
+    console.log(`Product Name: ${result.report.product.name}`);
+    console.log(`Verdict Score: ${result.report.verdict.score}/10.0`);
+    console.log(`Verdict Label: ${result.report.verdict.label}`);
+    console.log(`Confidence: ${result.report.verdict.confidence}%`);
     
-    const report = result.report;
-    
-    console.log('\n--- VERDICT ---');
-    console.log('Status:', report?.verdict_agent?.status);
-    console.log('Score:', report?.verdict_agent?.score);
-    console.log('Guidance:', report?.verdict_agent?.personalized_guidance?.slice(0, 150));
-    
-    console.log('\n--- PRODUCT ---');
-    console.log('Name:', report?.product?.name);
-    console.log('Brand:', report?.product?.brand);
-    
-    console.log('\n--- METRICS ---');
-    const m = report?.presentation_agent?.metrics;
-    console.log('Safety:', m?.safety);
-    console.log('Absorption:', m?.absorption);
-    console.log('Toxicity:', m?.toxicity);
-    console.log('Confidence:', m?.confidence_score);
-    
-    console.log('\n--- INGREDIENTS ---');
-    const ings = report?.ingredients_intelligence || [];
-    console.log(`Total: ${ings.length}`);
-    ings.slice(0, 3).forEach(i => console.log(` - ${i.name} [${i.risk}]: ${i.details?.slice(0, 80)}`));
+    console.log('\n--- NUTRITION EXTRACTED ---');
+    console.log(JSON.stringify(result.report.nutrition_analysis, null, 2));
 
-    console.log('\n--- CLAIMS ---');
-    const claims = report?.presentation_agent?.claims_verification || [];
-    console.log(`Total: ${claims.length}`);
-    claims.forEach(c => console.log(` - "${c.title}" → ${c.rating}`));
+    console.log('\n--- PERSONALIZED ADVICE ---');
+    console.log(JSON.stringify(result.report.personalized_advice, null, 2));
 
-    console.log('\n--- SUMMARY ---');
-    console.log(report?.presentation_agent?.actionable_takeaway?.slice(0, 200));
+    if (duration < 20000) {
+      console.log('\n✅ PERFORMANCE PASSED: Pipeline responded in under 20 seconds.');
+    } else {
+      console.log('\n⚠️ PERFORMANCE WARNING: Pipeline exceeded 20 seconds.');
+    }
 
-    console.log('\n✅ REAL-TIME AI RESULTS CONFIRMED — Pipeline is working!');
-  })
-  .catch(err => {
-    console.error('\n❌ Pipeline FAILED:', err.message);
-  });
+    if (result.report.product.name.toLowerCase().includes('maggi')) {
+      console.log('✅ EXTRACTION PASSED: Product name correctly identified.');
+    } else {
+      console.log('❌ EXTRACTION FAILED: Product name is generic or missing.');
+    }
+
+  } catch (err) {
+    console.error('❌ TEST FAILED WITH ERROR:', err);
+  }
+}
+
+testPipeline();

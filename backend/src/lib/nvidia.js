@@ -3,10 +3,10 @@ require('dotenv').config({ path: require('path').join(__dirname, '../../.env') }
 
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 
-// High-accuracy models for clinical-grade analysis
-const CLINICAL_MODEL = 'meta/llama-3.3-70b-instruct'; // Reasoning Spine
-const VISION_MODEL = 'meta/llama-3.2-90b-vision-instruct'; // High-accuracy OCR/VLM
-const AGILITY_MODEL = 'meta/llama-3.1-8b-instruct'; // Speed meta-agents
+// Optimized model routing for high-speed performance (<20s target)
+const CLINICAL_MODEL = 'meta/llama-3.1-8b-instruct'; // Switched to 8B for extreme speed
+const VISION_MODEL = 'meta/llama-3.2-90b-vision-instruct'; // Keep high-accuracy for OCR
+const AGILITY_MODEL = 'meta/llama-3.1-8b-instruct'; 
 
 /**
  * Robust JSON extraction from LLM text output.
@@ -84,7 +84,7 @@ function callNvidiaAPI(model, messages, maxTokens = 1000) {
 async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
   const { retries = 2, maxTokens = 2000, modelType = 'clinical' } = options;
   const messages = [
-    { role: 'system', content: `${systemInstruction}\nReturn STRICT JSON ONLY.` },
+    { role: 'system', content: `${systemInstruction}\nReturn ONLY a valid JSON object. No conversational filler, no markdown blocks, no 'Here is your JSON'. START with { and END with }.` },
     { role: 'user', content: prompt }
   ];
 
