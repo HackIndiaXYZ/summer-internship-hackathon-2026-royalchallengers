@@ -32,7 +32,7 @@ async function preparePresentation(context, options = {}) {
           "ingredient_audit": { "flagged": ["string"], "summary": "string" },
           "nutritional_profile": { "calories": number, "sugar": number, "fat": number, "protein": number }
       },
-      "claims": [ { "claim": "string", "verdict": "True|False", "reality": "string" } ],
+      "perception_reality": [ { "perception": "string", "reality": "string", "explanation": "string" } ],
       "recommendation": "string",
       "safe_intake": "string",
       "frequency": "string",
@@ -54,7 +54,7 @@ async function preparePresentation(context, options = {}) {
     image_url: context.product?.image_url || null,
     ingredients: [],
     analysis: { ingredient_audit: { flagged: [], summary: "Synthesis pending." }, nutritional_profile: { calories: 0, sugar: 0, fat: 0, protein: 0 } },
-    claims: [],
+    perception_reality: [],
     recommendation: "Clinical data synthesis incomplete.",
     safe_intake: "N/A",
     frequency: "N/A",
