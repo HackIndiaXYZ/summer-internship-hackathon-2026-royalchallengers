@@ -42,3 +42,7 @@ coverage/
 
 # Local configuration
 *.local
+
+# Documentation
+*.md
+!README.md
