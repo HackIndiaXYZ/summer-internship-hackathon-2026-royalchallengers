@@ -62,11 +62,11 @@ const AnalysisReport = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFB] pb-24 font-sans text-slate-800">
-      <div className="max-w-[700px] mx-auto p-4 md:p-8 space-y-6">
+      <div className="max-w-[700px] mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-4 sm:space-y-6">
 
-        {/* SECTION 1: Product Header Card */}
-        <div className="bg-white rounded-3xl border border-slate-100 p-6 flex flex-col md:flex-row gap-6 items-start relative overflow-hidden shadow-sm">
-          <div className="w-full md:w-32 h-32 bg-slate-50 rounded-2xl flex-shrink-0 overflow-hidden border border-slate-100 flex items-center justify-center">
+        {/* SECTION 1: Product Header Card (Horizontal Mobile Optimized) */}
+        <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 flex flex-row gap-4 sm:gap-6 items-start relative overflow-hidden shadow-sm">
+          <div className="w-24 sm:w-32 h-24 sm:h-32 bg-slate-50 rounded-2xl flex-shrink-0 overflow-hidden border border-slate-100 flex items-center justify-center">
             {imageUrl ? (
               <img
                 src={imageUrl}
@@ -78,33 +78,36 @@ const AnalysisReport = () => {
                 }}
               />
             ) : (
-              <span className="material-symbols-outlined text-slate-200 text-4xl">inventory_2</span>
+              <span className="material-symbols-outlined text-slate-200 text-3xl sm:text-4xl">inventory_2</span>
             )}
           </div>
-          <div className="flex-1 space-y-4">
-            <div className="flex justify-between items-start">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-tight">
-                {brand ? `${brand} ${productName}` : productName}
-              </h1>
-              <div className="text-right">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">OVERALL VERDICT</span>
-                <span className={`px-4 py-1.5 rounded-full text-white font-bold text-xs uppercase tracking-wider ${getVerdictColor(overallVerdict)}`}>
+          
+          <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+            <div className="space-y-1">
+              <div className="flex justify-between items-start gap-2">
+                <h1 className="text-[15px] sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight truncate">
+                  {brand || productName}
+                </h1>
+                <span className={`px-2 py-0.5 rounded-full text-white font-bold text-[9px] sm:text-xs uppercase tracking-wider flex-shrink-0 mt-1 ${getVerdictColor(overallVerdict)}`}>
                   {overallVerdict}
                 </span>
               </div>
+              <p className="text-[11px] sm:text-sm text-slate-400 font-bold uppercase tracking-widest">
+                OVERALL VERDICT
+              </p>
             </div>
 
-            <div className="space-y-4 pt-2">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500 font-medium italic">Product Name:</span>
-                <span className="font-bold text-slate-900">{productName}</span>
+            <div className="space-y-2 mt-2 sm:mt-4">
+              <div className="flex justify-between items-center text-[11px] sm:text-sm">
+                <span className="text-slate-500 font-medium italic truncate">Product Name:</span>
+                <span className="font-bold text-slate-900 truncate ml-2">{productName}</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm font-bold">
-                  <span className="text-slate-500 font-medium italic">System Confidence:</span>
-                  <span className="text-emerald-600 italic tracking-tighter text-[16px]">{confidenceScore}%</span>
+              <div className="space-y-1 sm:space-y-2">
+                <div className="flex justify-between items-center text-[11px] sm:text-sm font-bold">
+                  <span className="text-slate-500 font-medium italic">Confidence:</span>
+                  <span className="text-emerald-600 italic tracking-tighter text-xs sm:text-[16px]">{confidenceScore}%</span>
                 </div>
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-1.5 sm:h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${confidenceScore}%` }} />
                 </div>
               </div>
@@ -129,11 +132,11 @@ const AnalysisReport = () => {
               <tbody className="divide-y divide-slate-100">
                 {(showAllIngredients ? ingredients : ingredients.slice(0, 4)).map((ing, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-800">{ing.name}</td>
-                    <td className="px-6 py-4 text-left text-slate-500 text-sm font-medium">{ing.standardGuideline}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5 font-bold text-sm">
-                        <span className={`material-symbols-outlined text-[18px] ${ing.status === 'Acceptable' ? 'text-emerald-500' : ing.status === 'Caution' ? 'text-amber-500' : 'text-red-500'}`}>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-slate-800 text-[13px] sm:text-base">{ing.name}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-left text-slate-500 text-xs sm:text-sm font-medium">{ing.standardGuideline}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-right">
+                      <div className="flex items-center justify-end gap-1 sm:gap-1.5 font-bold text-[11px] sm:text-sm">
+                        <span className={`material-symbols-outlined text-[14px] sm:text-[18px] ${ing.status === 'Acceptable' ? 'text-emerald-500' : ing.status === 'Caution' ? 'text-amber-500' : 'text-red-500'}`}>
                           {ing.status === 'Acceptable' ? 'check_box' : 'warning'}
                         </span>
                         <span className={ing.status === 'Acceptable' ? 'text-emerald-500' : ing.status === 'Caution' ? 'text-amber-500' : 'text-red-500'}>
@@ -162,42 +165,44 @@ const AnalysisReport = () => {
         {/* SECTION 3: 2x2 Bento Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          {/* Card 1: THE PERCEPTION */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-emerald-600 tracking-tight">Perception vs Reality</h3>
+          {/* Card 1: PERCEPTION */}
+          <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 shadow-sm space-y-4">
+            <h3 className="text-[10px] sm:text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em]">Perception</h3>
             <div className="space-y-3">
-              <p className="text-xl font-bold text-slate-900 leading-tight">
+              <p className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">
                 {marketingClaims[0]?.claim ? `"${marketingClaims[0].claim}"` : 'Analyzing Brand Positioning...'}
               </p>
               <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-tighter ${marketingClaims[0]?.verdict === 'True' ? 'bg-emerald-500' : 'bg-red-500'}`}>
                 <span className="material-symbols-outlined text-[14px]">
                   {marketingClaims[0]?.verdict === 'True' ? 'verified' : 'warning'}
                 </span>
-                {marketingClaims[0]?.verdictLabel || 'SCIENTIFIC AUDIT IN PROGRESS'}
+                {marketingClaims[0]?.verdictLabel || 'SCIENTIFIC AUDIT'}
               </div>
               {marketingClaims[0]?.verdict !== 'True' && (
                 <p className="text-sm text-slate-400 font-medium">
-                  {brand || productName} is a natural product.
+                  Label-based claims being examined.
                 </p>
               )}
             </div>
           </div>
 
-          {/* Card 2: THE CLINICAL REALITY */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 tracking-tight">Perception—Reality</h3>
-            <div className="space-y-2">
-              <p className="text-lg font-bold text-slate-900">
-                {marketingClaims[0]?.verdict === 'True' ? 'True' : 'Clinical Deviation'}
+          {/* Card 2: REALITY */}
+          <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 shadow-sm space-y-4">
+            <h3 className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Reality</h3>
+            <div className="space-y-3">
+              <p className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                {marketingClaims[0]?.reality || 'Clinical analysis shows significant deviation.'}
               </p>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                {marketingClaims[0]?.verdict === 'True' ? 'True' : marketingClaims[0]?.reality}
-              </p>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-[13px] text-slate-600 font-medium leading-relaxed italic">
+                  {marketingClaims[0]?.explanation || 'AI detected ingredients that contradict global health standards for this product type.'}
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Card 3: Health Impact Stats */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-6 flex flex-col justify-center min-h-[220px]">
+          <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 shadow-sm space-y-5 sm:space-y-6 flex flex-col justify-center min-h-[180px] sm:min-h-[220px]">
             <h3 className="text-sm font-bold text-slate-900 tracking-tight">What If You Consume This Daily?</h3>
             <div className="space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">
@@ -218,7 +223,7 @@ const AnalysisReport = () => {
           </div>
 
           {/* Card 4: Checklist & Final Verdict */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm flex flex-col justify-between">
+          <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 shadow-sm flex flex-col justify-between">
             <div className="space-y-3">
               {[
                 { label: 'Manual input data', type: 'warning' },
@@ -241,8 +246,8 @@ const AnalysisReport = () => {
         </div>
 
         {/* SECTION 4: Personalised Advice */}
-        <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-sm space-y-6">
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Personalised Advice</h2>
+        <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-8 shadow-sm space-y-6">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Personalised Advice</h2>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-slate-50">
@@ -253,7 +258,7 @@ const AnalysisReport = () => {
               <span className="text-slate-500 font-medium italic">Frequency</span>
               <span className="font-bold text-slate-800">{adviceCard.frequency || 'Daily'}</span>
             </div>
-            <div className="flex justify-between items-center py-2">
+            <div className="flex justify-between items-center py-2 text-sm sm:text-base">
               <span className="text-slate-500 font-medium italic">Best Time</span>
               <span className="font-bold text-slate-800">{adviceCard.bestTime || 'Morning or with meals.'}</span>
             </div>
@@ -278,10 +283,10 @@ const AnalysisReport = () => {
                     {idx + 1}
                   </div>
                   <div className="space-y-1">
-                    <h4 className="font-bold text-slate-900 leading-tight">
+                    <h4 className="font-bold text-slate-900 leading-tight text-[13px] sm:text-base">
                       {alt.name} <span className="text-slate-400 font-normal ml-2 text-xs">{alt.price}</span>
                     </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed font-semibold">{alt.whyBetter}</p>
+                    <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed font-semibold">{alt.whyBetter}</p>
                   </div>
                 </div>
               ))}
@@ -289,17 +294,17 @@ const AnalysisReport = () => {
           </div>
         </div>
 
-        {/* SECTION 5: Footer Actions */}
-        <div className="flex flex-col md:flex-row gap-4 pt-4 pb-20">
+        {/* SECTION 5: Footer Actions (Symmetric Layout) */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 pb-20">
           <button
             onClick={() => navigate('/')}
-            className="flex-1 py-4 bg-[#006B5B] text-white rounded-xl font-bold shadow-lg shadow-teal-900/10 active:scale-95 transition-all text-[15px]"
+            className="flex-1 py-4 bg-[#006B5B] text-white rounded-xl font-bold shadow-lg shadow-teal-900/10 active:scale-95 transition-all text-[14px] sm:text-[15px]"
           >
             Scan Another Product
           </button>
           <button
             onClick={() => navigate('/history')}
-            className="px-8 py-4 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 active:scale-95 transition-all text-[15px]"
+            className="flex-1 py-4 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 active:scale-95 transition-all text-[14px] sm:text-[15px]"
           >
             History
           </button>
