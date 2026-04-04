@@ -22,7 +22,11 @@ async function processProductImage(base64Image) {
   2. OCR_EXTRACTION: Extract ALL content, including:
      - Full Brand and Product Name
      - Full Ingredient list (including additives and E-numbers)
-     - Nutrition Facts (per 100g/serving: calories, sugars, proteins, fats, fiber)
+     - Nutrition Facts: Extract Energy (kcal), Total Fat (g), Total Sugars (g), Salt/Sodium (g), Protein (g), Total Carbohydrates (g).
+     - CONVERSION RULES:
+       - Always use values per 100g. If only 'per serving' is shown, calculate per 100g based on serving size.
+       - Energy: If in kJ, convert: kcal = kJ / 4.184.
+       - Salt: If only Sodium (mg) is given, convert: Salt (g) = (Sodium / 1000) * 2.5.
   3. CLINICAL_MAPPING: Map to the following schema:
   
   {
@@ -30,18 +34,19 @@ async function processProductImage(base64Image) {
     "product_name": "Full product name including brand",
     "ingredients": "Comma separated string of ALL ingredients",
     "nutrition": {
-      "calories": "number or null",
-      "sugars": "string or null",
-      "protein": "string or null",
-      "fiber": "string or null",
-      "total_fat": "string or null"
+      "calories": number | null,
+      "fat": number | null,
+      "sugar": number | null,
+      "salt": number | null,
+      "protein": number | null,
+      "carbohydrates": number | null
     },
     "category": "Food | Beverage | Supplement | Botanical | Non-Food",
     "allergens": ["list", "of", "allergens"],
-    "health_flags": "Immediate clinical red flags (high SODIUM, trans-fats, etc.)"
+    "health_flags": "Immediate clinical red flags"
   }
   
-  Note: If living_being is true, set all other clinical fields to "N/A" or null.`;
+  Note: If any nutrition value is not visible or identifiable, set to null. Never guess.`;
 
   console.log('[Vision Service] Initiating Consolidated Clinical Scan (90B Vision)...');
   

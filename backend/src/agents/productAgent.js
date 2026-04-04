@@ -13,10 +13,8 @@ async function analyzeProduct(inputData, options = {}) {
     1. productName: exact name from label.
     2. brand: brand name or null.
     3. ingredients: complete list exactly as printed.
-    4. marketingClaims: ALL marketing claims/selling points printed on pack (e.g. '100% Organic', 'No Trans Fat').
-    5. nutrition: calories, fat, sugar, protein per 100g/serving.
-    
-    CRITICAL: Never guess ingredients not visible. If image data is provided (inline or as OCR), read small print.
+    4. marketingClaims: ALL marketing claims/selling points printed on pack (e.g. '100% Organic').
+    5. nutrition: Extract Energy (kcal), Total Fat (g), Total Sugars (g), Salt (g), Protein (g), Total Carbohydrates (g) per 100g.
     
     CRITICAL: Always Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
 
@@ -26,7 +24,14 @@ async function analyzeProduct(inputData, options = {}) {
       "brand": "string | null",
       "ingredients": "string",
       "marketingClaims": ["string"],
-      "nutrition": { "calories": number, "fat": number, "sugar": number, "protein": number },
+      "nutrition": { 
+        "calories": number | null, 
+        "fat": number | null, 
+        "sugar": number | null, 
+        "salt": number | null, 
+        "protein": number | null, 
+        "carbohydrates": number | null 
+      },
       "category": "string",
       "isValid": boolean
     }`;
@@ -42,7 +47,14 @@ async function analyzeProduct(inputData, options = {}) {
     "brand": null,
     "ingredients": "",
     "marketingClaims": [],
-    "nutrition": { "calories": 0, "fat": 0, "sugar": 0, "protein": 0 },
+    "nutrition": { 
+      "calories": null, 
+      "fat": null, 
+      "sugar": null, 
+      "salt": null, 
+      "protein": null, 
+      "carbohydrates": null 
+    },
     "category": "General",
     "isValid": false
   };

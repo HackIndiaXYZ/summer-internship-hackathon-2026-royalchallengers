@@ -22,6 +22,14 @@ function assembleReport(data) {
     imageUrl: product.imageUrl || null,
     confidenceScore: verdict.confidenceScore || 0,
     overallVerdict: (verdict.overallVerdict || "limit").toLowerCase(),
+    nutrition: {
+      calories: product.nutrition?.calories || null,
+      fat: product.nutrition?.fat || null,
+      sugar: product.nutrition?.sugar || null,
+      salt: product.nutrition?.salt || null,
+      protein: product.nutrition?.protein || null,
+      carbohydrates: product.nutrition?.carbohydrates || null
+    },
 
     ingredients: (ingredients || []).map(ing => ({
       name: ing.name || "Unknown",

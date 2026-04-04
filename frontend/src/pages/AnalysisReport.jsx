@@ -52,6 +52,7 @@ const AnalysisReport = () => {
     healthImpact = {},
     adviceCard = {},
     alternativeResources = { items: [] },
+    nutrition = {}
   } = report;
 
   const getVerdictColor = (v) => {
@@ -159,6 +160,29 @@ const AnalysisReport = () => {
                 </span>
               </button>
             )}
+          </div>
+        </div>
+        
+        {/* SECTION 2.5: Nutritional Snapshot */}
+        <div className="space-y-4">
+          <h2 className="text-[22px] font-bold text-[#111827]">Nutritional Snapshot</h2>
+          <div className="grid grid-cols-3 gap-[8px] sm:gap-[12px]">
+            {[
+              { emoji: '🔥', label: 'Calories', value: nutrition?.calories, unit: ' kcal' },
+              { emoji: '🧈', label: 'Fat', value: nutrition?.fat, unit: 'g' },
+              { emoji: '🍬', label: 'Sugar', value: nutrition?.sugar, unit: 'g' },
+              { emoji: '🧂', label: 'Salt', value: nutrition?.salt, unit: 'g' },
+              { emoji: '🥩', label: 'Protein', value: nutrition?.protein, unit: 'g' },
+              { emoji: '🍞', label: 'Carbs', value: nutrition?.carbohydrates, unit: 'g' },
+            ].map((item, idx) => (
+              <div key={idx} className="bg-[#F3F4F6] rounded-[16px] p-2.5 sm:p-5 flex flex-col items-start justify-center">
+                <span className="text-[24px] sm:text-[36px] mb-1 sm:mb-2">{item.emoji}</span>
+                <p className="text-[14px] sm:text-[28px] font-bold text-[#111827] leading-none mb-1">
+                  {item.value !== null && item.value !== undefined ? `${item.value}${item.unit}` : '—'}
+                </p>
+                <p className="text-[10px] sm:text-[15px] text-[#9CA3AF] font-medium leading-tight">{item.label}</p>
+              </div>
+            ))}
           </div>
         </div>
 

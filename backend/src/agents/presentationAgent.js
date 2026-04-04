@@ -28,9 +28,16 @@ async function preparePresentation(context, options = {}) {
       "product_name": "string",
       "image_url": "string | null",
       "ingredients": [ { "name": "string", "risk": "High|Medium|Low", "reason": "string", "function": "string", "standard_limit": "string" } ],
+      "nutrition": {
+        "calories": number | null,
+        "fat": number | null,
+        "sugar": number | null,
+        "salt": number | null,
+        "protein": number | null,
+        "carbohydrates": number | null
+      },
       "analysis": { 
-          "ingredient_audit": { "flagged": ["string"], "summary": "string" },
-          "nutritional_profile": { "calories": number, "sugar": number, "fat": number, "protein": number }
+          "ingredient_audit": { "flagged": ["string"], "summary": "string" }
       },
       "perception_reality": [ { "perception": "string", "reality": "string", "explanation": "string" } ],
       "recommendation": "string",

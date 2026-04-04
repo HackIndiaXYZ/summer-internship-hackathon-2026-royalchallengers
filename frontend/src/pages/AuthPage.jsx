@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import logo from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
 
 const AuthPage = () => {
@@ -75,10 +74,6 @@ const AuthPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* Branding Logo */}
-            <div className="flex items-center gap-4 mb-16 group cursor-default">
-              <img src={logo} alt="Medo Veda" className="h-24 md:h-32 w-auto object-contain" />
-            </div>
 
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-white tracking-tight leading-tight mb-6 shadow-sm">
               Evidence-Based Clinical Decision Support.

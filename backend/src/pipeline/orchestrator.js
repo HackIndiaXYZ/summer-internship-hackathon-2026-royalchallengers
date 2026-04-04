@@ -54,6 +54,7 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         productName: vStruct.product_name || "Unknown Product",
         brand: vStruct.brand || null,
         ingredients: vStruct.ingredients || "",
+        nutrition: vStruct.nutrition || null,
         marketingClaims: vStruct.marketing_claims || [],
         imageUrl: inputData.imageUrl || visionRes.image_url || null,
         raw_ocr: visionRes.raw
@@ -65,6 +66,7 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         productName: pRes.productName || inputData.content,
         brand: pRes.brand || null,
         ingredients: pRes.ingredients || "",
+        nutrition: pRes.nutrition || null,
         marketingClaims: pRes.marketingClaims || [],
         imageUrl: null
       };

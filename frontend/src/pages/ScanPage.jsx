@@ -202,6 +202,17 @@ const ScanPage = () => {
     { id: 'voice', label: 'Voice', icon: <span className="material-symbols-outlined text-[18px]">mic</span> }
   ];
 
+  const cycleMethod = (direction) => {
+    const currentIndex = methods.findIndex(m => m.id === activeMethod);
+    let nextIndex;
+    if (direction === 'next') {
+      nextIndex = (currentIndex + 1) % methods.length;
+    } else {
+      nextIndex = (currentIndex - 1 + methods.length) % methods.length;
+    }
+    setActiveMethod(methods[nextIndex].id);
+  };
+
 
   return (
     <div className="min-h-screen bg-surface font-body text-on-surface selection:bg-primary-fixed-dim" style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}>
@@ -218,21 +229,61 @@ const ScanPage = () => {
 
         {/* Main Bento Container */}
         <div className="bg-surface-container-low rounded-[2rem] p-4 md:p-8 mb-8 border border-white/40">
-          {/* Method Switcher (Tabs) */}
-          <div className="flex flex-row overflow-x-auto no-scrollbar gap-2 mb-8 p-1.5 bg-surface-container rounded-2xl sm:rounded-3xl w-full max-w-2xl mx-auto shadow-inner">
-            {methods.map((method) => (
-              <button
-                key={method.id}
-                onClick={() => setActiveMethod(method.id)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-xl sm:rounded-2xl text-[10px] uppercase tracking-widest font-black transition-all duration-300 whitespace-nowrap ${activeMethod === method.id
-                  ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105'
-                  : 'text-on-surface-variant hover:bg-white/50'
-                  }`}
+          {/* Method Switcher - Desktop Tabs / Mobile Arrow Toggle */}
+          <div className="relative mb-8 w-full max-w-2xl mx-auto">
+            {/* Desktop View: Tabs */}
+            <div className="hidden sm:flex flex-row gap-2 p-1.5 bg-surface-container rounded-3xl shadow-inner">
+              {methods.map((method) => (
+                <button
+                  key={method.id}
+                  onClick={() => setActiveMethod(method.id)}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-4 rounded-2xl text-[10px] uppercase tracking-widest font-black transition-all duration-300 whitespace-nowrap ${activeMethod === method.id
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105'
+                    : 'text-on-surface-variant hover:bg-white/50'
+                    }`}
+                >
+                  {method.icon}
+                  {method.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile View: Arrow Toggle */}
+            <div className="flex sm:hidden items-center justify-between p-2 bg-surface-container rounded-2xl shadow-inner gap-2">
+              <button 
+                onClick={() => cycleMethod('prev')}
+                className="p-3 bg-white/50 rounded-xl text-primary flex items-center justify-center active:scale-95 transition-transform"
               >
-                {method.icon}
-                {method.label}
+                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
               </button>
-            ))}
+              
+              <div className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-primary text-white rounded-xl shadow-lg shadow-primary/10 overflow-hidden relative group">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeMethod}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-2"
+                  >
+                    {methods.find(m => m.id === activeMethod).icon}
+                    <span className="text-[10px] uppercase tracking-widest font-black whitespace-nowrap">
+                      {methods.find(m => m.id === activeMethod).label}
+                    </span>
+                  </motion.div>
+                </AnimatePresence>
+                {/* Visual Dropdown Hint */}
+                <span className="material-symbols-outlined text-[14px] opacity-40 ml-1">expand_more</span>
+              </div>
+
+              <button 
+                onClick={() => cycleMethod('next')}
+                className="p-3 bg-white/50 rounded-xl text-primary flex items-center justify-center active:scale-95 transition-transform"
+              >
+                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+              </button>
+            </div>
           </div>
 
           {/* Dynamic Content Area */}
@@ -368,15 +419,6 @@ const ScanPage = () => {
                   </div>
                 )}
 
-                {/* Viewfinder Controls */}
-                <div className="absolute bottom-6 right-6 flex gap-3">
-                  <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all border border-white/10">
-                    <span className="material-symbols-outlined text-[20px]">flashlight_on</span>
-                  </button>
-                  <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all border border-white/10">
-                    <span className="material-symbols-outlined text-[20px]">rotate_left</span>
-                  </button>
-                </div>
               </motion.div>
             </AnimatePresence>
           </div>
