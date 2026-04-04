@@ -14,10 +14,10 @@ async function analyzeIngredients(ingredients, productData, persona, options = {
     Audit ingredients: ${ingredients} for Product: ${productData.productName}
     User Persona Context: ${JSON.stringify(persona)}
     
-    3. Formatting: Guidelines must be extremely concise (e.g., "FSSAI (2011)", "WHO (2020)"). Never use full regulatory names or long titles.
+    3. Formatting: Guidelines must include the authority (WHO or FSSAI) followed by 4-5 words of research-backed context inside parentheses explaining why it is acceptable/caution/limit (e.g., "WHO (Acceptable: Within daily intake safety zone)", "FSSAI (Caution: Potential long-term gut inflammation)").
     4. Clinical Precision: Ensure guidelines are relevant to the ingredient's risk profile (e.g., Sodium -> WHO/FSSAI salt limits).
-    4. Classify: Acceptable (safe) | Caution (limit) | Harmful (avoid).
-    5. Apply the persona lens: an ingredient may be Caution for this user but Acceptable for others.
+    5. Classify: Acceptable (safe) | Caution (limit) | Harmful (avoid).
+    6. Apply the persona lens: an ingredient may be Caution for this user but Acceptable for others.
     
     CRITICAL: Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
 
@@ -25,7 +25,7 @@ async function analyzeIngredients(ingredients, productData, persona, options = {
     [
       {
         "name": "string — ingredient name exactly as on label",
-        "standardGuideline": "string — short WHO/FSSAI reference",
+        "standardGuideline": "string — WHO/FSSAI + (4-5 words research context)",
         "status": "Acceptable | Caution | Harmful"
       }
     ]`;
