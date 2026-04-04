@@ -57,6 +57,14 @@ app.post('/api/extract-image', upload.single('image'), extractImageText);
 app.post('/api/analyze', upload.single('image'), analyzeImage);
 
 // Health Check
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Medo-Veda Clinical Backend is Active', 
+    status: 'online',
+    timestamp: new Date() 
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
 });
