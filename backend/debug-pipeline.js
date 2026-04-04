@@ -9,24 +9,24 @@ async function debugPipeline() {
   try {
     const result = await runAnalysisPipeline(inputData, userProfile);
     console.log('--- FINAL REPORT ---');
-    console.log(JSON.stringify(result.report, null, 2));
+    console.log(JSON.stringify(result, null, 2));
     
-    if (result.report.claim_vs_reality.length > 0) {
-      console.log('✅ Claims Found:', result.report.claim_vs_reality.length);
+    if (result.claims && result.claims.length > 0) {
+      console.log('✅ Claims Found:', result.claims.length);
     } else {
       console.log('❌ NO CLAIMS FOUND');
     }
 
-    if (result.report.alternatives.length > 0) {
-      console.log('✅ Alternatives Found:', result.report.alternatives.length);
+    if (result.alternatives && result.alternatives.length > 0) {
+      console.log('✅ Alternatives Found:', result.alternatives.length);
     } else {
       console.log('❌ NO ALTERNATIVES FOUND');
     }
 
-    if (result.report.highlights.length > 0) {
-      console.log('✅ Highlights Found:', result.report.highlights.length);
+    if (result.ingredients && result.ingredients.length > 0) {
+      console.log('✅ Ingredients Found:', result.ingredients.length);
     } else {
-      console.log('❌ NO HIGHLIGHTS FOUND');
+      console.log('❌ NO INGREDIENTS FOUND');
     }
 
   } catch (err) {

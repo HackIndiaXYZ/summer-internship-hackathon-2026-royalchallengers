@@ -213,34 +213,6 @@ Create accounts on all of these before starting. All have free tiers.
 | Google Cloud | console.cloud.google.com | Vision API + Cloud Storage |
 | Open Food Facts | No account needed | Free public barcode API |
 
-### 4.2 All Environment Variables
-
-Create a `.env` file at the root of your project. Every variable below is required.
-
-```env
-# ─── ANTHROPIC ───────────────────────────────────────────────
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# ─── DATABASE (Neon PostgreSQL) ──────────────────────────────
-DATABASE_URL=postgresql://user:password@ep-xxx.neon.tech/neondb?sslmode=require
-
-# ─── REDIS (Upstash) ─────────────────────────────────────────
-REDIS_URL=rediss://default:xxxxxxxxxxxx@xxx.upstash.io:6380
-
-# ─── GOOGLE CLOUD ────────────────────────────────────────────
-GOOGLE_CLOUD_PROJECT_ID=your-project-id
-GOOGLE_CLOUD_KEY_FILE=./google-credentials.json
-GOOGLE_CLOUD_STORAGE_BUCKET=medo-veda-images
-
-# ─── AUTH ────────────────────────────────────────────────────
-JWT_SECRET=generate-a-long-random-string-here
-JWT_EXPIRES_IN=7d
-
-# ─── SERVER ──────────────────────────────────────────────────
-PORT=3001
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
-```
 
 ### 4.3 Google Cloud Setup Steps
 
