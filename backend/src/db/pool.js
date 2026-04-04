@@ -1,54 +1,58 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-let pool;
-try {
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost') ? false : {
-      rejectUnauthorized: false
-    }
-  });
+/**
+ * Medo Veda Core Persistence Engine
+ * ───
+ * Hardened PostgreSQL Pool with Neon-specific connection lifecycle management.
+ * Silent mock fallbacks have been removed to ensure absolute data consistency.
+ */
 
-  // Test connection
-  pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-      console.error('Database Connection Error (Is PostgreSQL running?):', err.message);
-      console.warn('Backend will attempt to operate in MOCK mode for data operations.');
-    } else {
-      console.log('Database Connected Successfully');
-    }
-  });
+const poolConfig = {
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost') ? false : {
+    rejectUnauthorized: false
+  },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+};
 
-  // Connection Warmer: Query every 45s to prevent Neon serverless cold starts (drastic reduction in login latency)
-  setInterval(() => {
-    pool.query('SELECT 1').catch(() => {});
-  }, 45000);
-} catch (e) {
-  console.error('Fatal Pool Creation Error:', e.message);
-  pool = {
-    query: async () => ({ rows: [] }) // Simple mock for emergency
-  };
-}
+const pool = new Pool(poolConfig);
 
-// Robust query wrapper that handles connection drops
-const safeQuery = async (text, params) => {
+// Immediate Error Handling: Capture backend-level connection drops
+pool.on('error', (err) => {
+  console.error('[CORE DB ERROR] Unexpected error on idle client:', err.message);
+});
+
+// Warmup Sync
+pool.query('SELECT NOW()', (err) => {
+  if (err) {
+    console.error('[CRITICAL DB FAILURE] Database is UNREACHABLE:', err.message);
+  } else {
+    console.log('[CORE DB] Connected successfully to Medo-Veda Primary Instance.');
+  }
+});
+
+// Keep-Alive Loop: Prevent cold-starts
+setInterval(() => {
+  pool.query('SELECT 1').catch(() => {});
+}, 40000);
+
+/**
+ * Transparent Query Wrapper
+ * Returns the exact result or throws to allow controller error handling.
+ */
+const transparentQuery = async (text, params) => {
   try {
     return await pool.query(text, params);
   } catch (err) {
-    console.error('Database Query Error:', err.message);
-    // Generic clinical mock data when DB is down
-    if (text.includes('INSERT INTO scans')) {
-      return { rows: [{ id: 'SCAN-MOCK-' + Date.now() }] };
-    }
-    if (text.includes('SELECT p.* FROM personas p')) {
-      return { rows: [{ health_conditions: ['Hypertension'], health_goals: ['Heart Health'], dietary_preferences: ['Vegetarian'] }] };
-    }
-    return { rows: [] };
+    console.error(`[DB ERROR] ${err.message} | Query: ${text.substring(0, 50)}...`);
+    throw err; 
   }
 };
 
 module.exports = {
-  query: safeQuery,
+  query: transparentQuery,
   originalPool: pool
 };

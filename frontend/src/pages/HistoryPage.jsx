@@ -27,18 +27,60 @@ const HistoryPage = () => {
       // Simulate fake data for non-logged in users
       setScans([
         {
-          id: "SIM-001",
+          id: "SIM-MAGGI-01",
+          product_name: "Maggi 2-Minute Noodles",
           input_method: "barcode",
           overall_verdict: "limit",
           created_at: new Date().toISOString(),
-          analysis_result: { presentation_agent: { summary_verdict: "HIGH SODIUM CONTENT DETECTED" } }
+          analysis_result: {
+            productName: "Maggi 2-Minute Noodles",
+            brand: "Nestlé",
+            overallVerdict: "limit",
+            confidenceScore: 94,
+            healthImpact: {
+              personalizedSummary: "High sodium load (~0.8g/serving) detected. Refined flour base may trigger glycemic spikes in your profile.",
+              personalizedRiskScore: 65
+            },
+            ingredients: [
+              { name: "Refined Wheat Flour", standardGuideline: "WHO: Limit refined carbs", status: "Caution" },
+              { name: "Palm Oil", standardGuideline: "AHA: High saturated fat", status: "Caution" },
+              { name: "Iodized Salt", standardGuideline: "WHO: <5g/day total", status: "Harmful" }
+            ],
+            marketingClaims: [
+              { claim: "No MSG added", verdict: "Misleading", verdictLabel: "MISLEADING CLAIM DETECTED", reality: "Contains naturally occurring glutamates from hydrolyzed protein." }
+            ],
+            adviceCard: {
+              primaryAdvice: "Restrict consumption to once per 14-day cycle.",
+              consumptionGuideline: "Pair with 200g of fibrous vegetables to mitigate glucose impact."
+            }
+          }
         },
         {
-          id: "SIM-002",
+          id: "SIM-OATS-02",
+          product_name: "Quaker Oats (Plain)",
           input_method: "image",
           overall_verdict: "safe",
           created_at: new Date(Date.now() - 86400000).toISOString(),
-          analysis_result: { presentation_agent: { summary_verdict: "OPTIMAL BIOMETRIC RECOVERY PROFILE" } }
+          analysis_result: {
+            productName: "Quaker Oats (Plain)",
+            brand: "Quaker",
+            overallVerdict: "safe",
+            confidenceScore: 98,
+            healthImpact: {
+              personalizedSummary: "Excellent source of Beta-Glucan fiber. Highly cardioprotective for your lipid profile.",
+              personalizedRiskScore: 15
+            },
+            ingredients: [
+              { name: "Whole Grain Oats", standardGuideline: "FSSAI: High Fiber", status: "Acceptable" }
+            ],
+            marketingClaims: [
+              { claim: "Heart Healthy", verdict: "True", verdictLabel: "CLAIM VERIFIED", reality: "Soluble fiber content is clinically proven to reduce LDL cholesterol." }
+            ],
+            adviceCard: {
+              primaryAdvice: "Optimal for daily metabolic stability.",
+              consumptionGuideline: "Ideal pre-workout or breakfast staple."
+            }
+          }
         }
       ]);
       setLoading(false);
@@ -90,6 +132,11 @@ const HistoryPage = () => {
               <Link
                 key={scan.id}
                 to={`/analysis/${scan.id}`}
+                state={{ 
+                  analysis: scan.analysis_result, 
+                  productName: scan.product_name,
+                  imageUrl: scan.input_image
+                }}
                 className="group bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all border-2 border-[#005144]/30 hover:border-[#005144] flex flex-col justify-between min-h-[320px] relative overflow-hidden"
               >
                 <div>
@@ -123,7 +170,7 @@ const HistoryPage = () => {
                   </div>
 
                   <p className="text-sm text-[#3e4946] line-clamp-3 leading-relaxed mb-6">
-                    {scan.analysis_result?.presentation_agent?.summary_verdict || scan.analysis_result?.verdict?.summary || "Clinical assessment completed via 9-agent pipeline."}
+                    {scan.analysis_result?.healthImpact?.personalizedSummary || scan.analysis_result?.adviceCard?.primaryAdvice || "Clinical assessment completed via 9-agent pipeline."}
                   </p>
                 </div>
 

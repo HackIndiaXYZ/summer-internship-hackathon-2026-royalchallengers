@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import ScanPage from './pages/ScanPage';
 import AnalysisReport from './pages/AnalysisReport';
 import ProfileSetup from './pages/ProfileSetup';
+import ReportLoadingPage from './pages/ReportLoadingPage';
 import HistoryPage from './pages/HistoryPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -71,6 +72,7 @@ function App() {
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/scan" element={<ScanPage />} />
+              <Route path="/scan/loading/:scanId" element={<ReportLoadingPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/analysis/:id" element={<AnalysisReport />} />
               <Route path="/analysis" element={<AnalysisReport />} />

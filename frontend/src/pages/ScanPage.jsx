@@ -11,11 +11,13 @@ const ScanPage = () => {
   const { user } = useAuth();
   const [activeMethod, setActiveMethod] = useState('upload');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState('Initializing Clinical Pipeline...');
   const [productName, setProductName] = useState('');
   const [ingredients, setIngredients] = useState('');
   const [fullOcrText, setFullOcrText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState(null);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
@@ -62,50 +64,46 @@ const ScanPage = () => {
     if (!file) return;
 
     setIsAnalyzing(true);
-    const loadingToast = toast.loading('Compressing & Extracting Clinical Data...');
+    setAnalysisStatus('Uploading Specimen to Cloudinary...');
+    const loadingToast = toast.loading('Initializing Clinical Pipeline...');
+    
     try {
-      // Step 1: Compress large images locally
+      // 1. Local compression for bandwidth optimization
       const compressedFile = file.size > 1024 * 512 ? await compressImage(file) : file;
       
+      // 2. Prepare FormData for Multipart Upload
       const formData = new FormData();
       formData.append('image', compressedFile);
+      formData.append('userId', user?.id || 'GUEST');
 
-      const res = await axios.post(`${API_URL}/api/extract-image`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const res = await axios.post(`${API_URL}/api/analyze`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000 
       });
 
       if (res.data.success) {
-        const { data: structured, raw: rawOcr } = res.data;
+        const { scanId } = res.data;
+        toast.success('Clinical connection established. Starting analysis...', { id: loadingToast });
         
-        // Populate fields directly from structured data
-        const extractedProduct = structured?.name || '';
-        const extractedIngredients = structured?.ingredients || '';
-        
-        setFullOcrText(rawOcr || '');
-        if (extractedProduct) setProductName(extractedProduct);
-        if (extractedIngredients) setIngredients(extractedIngredients);
-        
-        // Show the manual entry tab to allow review
-        setActiveMethod('manual');
-        
-        toast.success(`Detected: ${extractedProduct || 'Product Details'}`, {
-          id: loadingToast,
-          style: {
-            background: '#005144',
-            color: '#fff',
-            fontWeight: 600,
-            borderRadius: '16px',
-          }
+        // 4. Redirect to Polling Page
+        navigate(`/scan/loading/${scanId}`, {
+          state: { isGuest: !user }
         });
+      } else {
+        throw new Error(res.data.error || 'Failed to initialize clinical connection');
       }
+
     } catch (err) {
-      console.error('OCR Error:', err);
-      toast.error('Image analysis protocol failed. Please manual entry.', { id: loadingToast });
+      console.error('Core Pipeline Error:', err);
+      const errorMsg = err.response?.data?.error || err.message || 'Clinical Pipeline Failure';
+      toast.error(errorMsg, { id: loadingToast });
+      setActiveMethod('manual'); // Fallback to manual
     } finally {
       setIsAnalyzing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
 
   useEffect(() => {
     if (window.SpeechRecognition || window.webkitSpeechRecognition) {
@@ -154,7 +152,6 @@ const ScanPage = () => {
 
   const handleScan = async (type, content) => {
     setIsAnalyzing(true);
-    const analysisToast = toast.loading('Initializing Analysis Pipeline...');
     try {
       const trimmedProduct = productName.trim() || "Clinical Sample";
       const trimmedIngredients = ingredients.trim() || "Molecular scan data";
@@ -164,30 +161,33 @@ const ScanPage = () => {
         content: type === 'text' 
           ? `PRODUCT_NAME: ${trimmedProduct}\nINGREDIENTS_LIST: ${trimmedIngredients}${fullOcrText ? `\nRAW_EXTRACTION_CONTEXT: ${fullOcrText}` : ''}` 
           : content,
-        userId: user?.id || 'GUEST'
+        userId: user?.id || 'GUEST',
+        imageUrl: selectedImageUrl
       };
 
-      const res = await axios.post(`${API_URL}/api/scans`, payload);
+      // EARLY SESSION LOCKING: Anchor metadata immediately to prevent "Expired" errors on refresh
+      const tempId = `temp_${Date.now()}`;
+      localStorage.setItem(`scan_session_${tempId}`, JSON.stringify({
+        product_name: trimmedProduct || 'Clinical Sample',
+        input_image: selectedImageUrl,
+        analysis_result: { product: { name: trimmedProduct } },
+        is_loading: true
+      }));
+
+      // High-Fidelity Network Resilience: Polling Redirect
+      const res = await axios.post(`${API_URL}/api/scans`, payload, {
+        timeout: 60000 
+      });
 
       if (res.data.success) {
-        toast.success(`Analysis ready for ${trimmedProduct}`, {
-          id: analysisToast,
-          style: {
-            background: '#005144',
-            color: '#fff',
-            fontWeight: 600,
-            borderRadius: '16px',
-          }
-        });
-        navigate(`/analysis/${res.data.scanId}`, {
-          state: {
-            analysis: res.data.analysis,
-            productName: trimmedProduct,
-            inputQuery: type === 'text' ? `${trimmedProduct} — ${trimmedIngredients}` : content,
-            isGuest: !user
-          }
+        const { scanId } = res.data;
+        toast.success('Clinical session initialized...', { id: analysisToast });
+        
+        navigate(`/scan/loading/${scanId}`, {
+          state: { isGuest: !user }
         });
       }
+
     } catch (err) {
       console.error("Analysis Error:", err);
       toast.error('Clinical Pipeline Failure. Check network connection.', { id: analysisToast });
@@ -358,7 +358,7 @@ const ScanPage = () => {
                     </div>
                     <h2 className="text-3xl font-black text-white tracking-tighter mb-4">Orchestrating AI Pipeline</h2>
                     <p className="text-white/40 max-w-md text-sm leading-relaxed uppercase tracking-[0.3em] font-medium animate-pulse">
-                      9 Clinical Agents analyzing ingredients, drug interactions, and medical history in real-time...
+                      {analysisStatus}
                     </p>
                     <div className="mt-8 flex gap-2">
                       <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>

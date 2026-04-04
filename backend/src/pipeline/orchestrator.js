@@ -1,200 +1,125 @@
-const { runNvidiaAgent, extractJSON } = require('../lib/nvidia');
 const { processProductImage } = require('../services/visionService');
-const { getPersonaPrompt } = require('../agents/personaAgent');
-const { getIngredientPrompt } = require('../agents/ingredientAgent');
-const { getClaimPrompt } = require('../agents/claimAgent');
-const { getRecommendationPrompt } = require('../agents/recommendationAgent');
-const { getAlternativesPrompt } = require('../agents/alternativesAgent');
-const { getVerdictPrompt } = require('../agents/verdictAgent');
-const { getPresentationPrompt } = require('../agents/presentationAgent');
+const { validatePipelineOutput } = require('../lib/validator');
+
+// Import 9-Agent Protocol (V4.8)
+const { analyzePersona } = require('../agents/personaAgent');
+const { analyzeProduct } = require('../agents/productAgent');
+const { analyzeIngredients } = require('../agents/ingredientAgent');
+const { analyzeClaims } = require('../agents/claimAgent');
+const { analyzePersonalization } = require('../agents/personalizationAgent');
+const { fetchEvidence } = require('../agents/evidenceAgent');
+const { findAlternatives } = require('../agents/alternativesAgent');
+const { generateVerdict } = require('../agents/verdictAgent');
+const { assembleReport } = require('../agents/assemblyAgent');
 
 /**
- * Medo Veda Goal-Aware AI Pipeline
- * Orchestrates specialized agents for personalized clinical reasoning.
- * Optimized for performance and reliability.
+ * MEDO VEDA — CLINICAL PROTOCOL ORCHESTRATOR (V4.8)
+ * 9-Agent reasoning pipeline for high-fidelity clinical reports.
  */
-async function runAnalysisPipeline(inputData, userProfile) {
-  const startTotal = Date.now();
-  const TIMEOUT_MS = 60000; // Increased to 60s for industrial reliability
+async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
+  const { setStatus } = require('../lib/scanStatusStore');
+  const updateStatus = (step, label) => {
+    console.log(`[Pipeline Status] Step ${step}: ${label}`);
+    if (scanId) setStatus(scanId, { step, label });
+  };
+
+  const pipelineStart = Date.now();
+  console.log('[PIPELINE START]', new Date().toISOString());
   const isImage = inputData.type === 'image';
 
   try {
-    console.log(`[Pipeline] Starting Analysis via ${inputData.type}...`);
+    // ── STEP 1: PERSONA CONTEXT (8B AGILITY) ──
+    updateStatus(1, 'Extracting user health profile & risk lens...');
+    const persona = await analyzePersona(userProfile, { modelType: 'agility' });
+    console.log('[WAVE_1_DONE/Persona]', Date.now() - pipelineStart, 'ms');
 
-    // ── WAVE 1: CONTEXT & IDENTITY ──
-    let context;
+    // ── STEP 2: PRODUCT EXTRACTION (VISION OR AGILITY) ──
+    let product;
     if (isImage) {
-      console.log('[Pipeline] Image detected. Running High-Accuracy Vision Service...');
-      const { structured } = await processProductImage(inputData.content);
-      context = {
-        persona: { primaryGoal: "General Health", goalContext: "Image-based direct scan" },
-        product: structured,
-        rawIngredients: Array.isArray(structured.ingredients) ? structured.ingredients : (structured.ingredients?.split(',') || [])
+      updateStatus(2, 'Deconstructing specimen via 90B Vision Engine...');
+      const visionRes = await processProductImage(inputData.content);
+      
+      // Safety Guard: Abort if living being detected
+      if (visionRes.living_being) {
+         return {
+          productName: "Non-Edible Specimen",
+          overallVerdict: "avoid",
+          healthImpact: { verdictReasoning: "No clinical data available for this specimen type." },
+          status: 'ABORTED'
+        };
+      }
+
+      const vStruct = visionRes.structured || {};
+      product = {
+        productName: vStruct.product_name || "Unknown Product",
+        brand: vStruct.brand || null,
+        ingredients: vStruct.ingredients || "",
+        marketingClaims: vStruct.marketing_claims || [],
+        imageUrl: inputData.imageUrl || visionRes.image_url || null,
+        raw_ocr: visionRes.raw
       };
     } else {
-      const contextRaw = await runNvidiaAgent(
-        `Input Content: ${inputData.content}`,
-        `You are a Clinical Data Architect.
-        User Profile: ${JSON.stringify(userProfile)}
-        
-        INPUT ANALYSIS:
-        - Content: ${inputData.content} 
-        (Note: Content may contain PRODUCT_NAME, INGREDIENTS_LIST, and RAW_EXTRACTION_CONTEXT from OCR).
-
-        TASK:
-        1. Extract the User's Primary Goal & Profile Context.
-        2. Identify the Product Name, Brand, Category, and Ingredients.
-        3. NUTRITION: Extract or Estimate precisely (calories, sugar_g, fat_g, protein_g, salt_g per 100g).
-        
-        STRICT RULES:
-        - If nutritional data is missing, you MUST INFER/ESTIMATE it (per 100g). NEVER return empty or placeholder values.
-        - Ensure all nutritional values are purely NUMERIC strings (e.g. "450", not "450 kcal").
-        
-        Return JSON:
-        {
-          "persona": { "primaryGoal": "", "goalContext": "" },
-          "product": { 
-            "name": "", "brand": "", "category": "", 
-            "nutrition": { "calories": "0", "sugar_g": "0", "fat_g": "0", "protein_g": "0", "salt_g": "0" } 
-          },
-          "rawIngredients": ["list", "of", "strings"]
-        }`,
-        { 
-          modelType: 'clinical',
-          maxTokens: 1200
-        }
-      );
-      context = extractJSON(contextRaw) || {};
-    }
-
-    if (!context.product) throw new Error('WAVE1_EXTRACTION_FAILED');
-    if (!context.product) throw new Error('WAVE1_EXTRACTION_FAILED');
-
-    const personaContext = context.persona || { primaryGoal: "General Health" };
-    const product = context.product || { name: 'Unknown Product' };
-    const rawIngredients = context.rawIngredients || [];
-
-    console.log(`[Pipeline] Wave 1 Done. Product Identified: ${product.name}`);
-
-    // Create a High-Confidence Base Report using Wave 1 Data (Nutrition/Identity)
-    // This serves as the fallback if clinical analysis (Wave 2) is slow.
-    const baseReport = {
-      product: {
-        name: product.name || 'Detected Product',
-        brand: product.brand || 'Known Brand',
-        category: product.category || 'Food/Beverage',
-        source: inputData.type
-      },
-      verdict: { label: "ANALYZING", reason: "Identifying specific risk markers...", score: 50.0, confidence: 60 },
-      highlights: ["Initial screening complete"],
-      ingredient_analysis: rawIngredients.map(name => ({ name, risk: 'medium', reason: 'Analyzing...', function: 'Component' })),
-      nutrition_analysis: {
-        ...product.nutrition,
-        risk_flags: []
-      },
-      claim_vs_reality: [],
-      personalized_advice: { summary: "Preliminary analysis ready. Deep clinical scan in progress..." },
-      alternatives: [],
-      personalization: personaContext
-    };
-
-    // ── WAVE 2: CLINICAL CONSENSUS (Parallel - 4 agents) ──
-    const runWave2 = (async () => {
-      const [ingredRaw, claimRaw, recoRaw, altRaw] = await Promise.all([
-        runNvidiaAgent(
-          `Ingredients: ${JSON.stringify(rawIngredients)}`,
-          getIngredientPrompt(rawIngredients, personaContext),
-          { modelType: 'agility', maxTokens: 800 }
-        ),
-        runNvidiaAgent(
-          `Product Content: ${inputData.content}\nIngredients: ${JSON.stringify(rawIngredients)}`,
-          getClaimPrompt([], rawIngredients, personaContext),
-          { modelType: 'agility', maxTokens: 800 }
-        ),
-        runNvidiaAgent(
-          `Analyze Product: ${JSON.stringify(product)}\nIngredients: ${JSON.stringify(rawIngredients)}`,
-          getRecommendationPrompt(product, rawIngredients, personaContext),
-          { modelType: 'clinical', maxTokens: 1000 }
-        ),
-        runNvidiaAgent(
-          `Alternatives for: ${product.category}\nIngredients: ${JSON.stringify(rawIngredients)}`,
-          getAlternativesPrompt(rawIngredients, personaContext),
-          { modelType: 'agility', maxTokens: 800 }
-        )
-      ]);
-
-      const ingredData = extractJSON(ingredRaw) || { ingredients: [] };
-      const claimData = extractJSON(claimRaw) || { claims: [] };
-      const recoData = extractJSON(recoRaw) || { stance: "LIMIT", score: 50 };
-      const altData = extractJSON(altRaw) || { alternatives: [] };
-
-      return {
-        product: baseReport.product,
-        verdict: {
-          label: (recoData.stance || 'LIMIT').toUpperCase(),
-          reason: recoData.clinicalAnalysis || recoData.strategy?.summary || 'Analysis complete.',
-          score: parseFloat(recoData.score) || 50.0,
-          confidence: parseInt(recoData.confidence) || 85
-        },
-        highlights: [
-          ...(ingredData.topConcerns || []),
-          ...(recoData.strategy?.warnings || [])
-        ].filter(Boolean).slice(0, 3),
-        ingredient_analysis: (ingredData.ingredients || []).map(i => ({
-          name: i.name,
-          risk: i.risk || 'medium',
-          reason: i.concern || 'Analyzed relative to goal.',
-          function: i.function || 'Additive',
-          classification: i.classification
-        })),
-        nutrition_analysis: {
-          ...product.nutrition,
-          risk_flags: (ingredData.topConcerns || []).map(c => ({ type: c, severity: 'medium' }))
-        },
-        claim_vs_reality: claimData.claims || [],
-        personalized_advice: {
-          intake: recoData.strategy?.intake || 'Standard serving',
-          frequency: recoData.strategy?.frequency || 'Occasional',
-          summary: recoData.personalizedSummary || recoData.strategy?.summary || 'Proceed with caution.',
-          warnings: recoData.strategy?.warnings || []
-        },
-        alternatives: altData.alternatives || [],
-        personalization: personaContext
+      updateStatus(2, 'Analyzing product metadata...');
+      const pRes = await analyzeProduct(inputData.content, { modelType: 'agility' });
+      product = {
+        productName: pRes.productName || inputData.content,
+        brand: pRes.brand || null,
+        ingredients: pRes.ingredients || "",
+        marketingClaims: pRes.marketingClaims || [],
+        imageUrl: null
       };
-    })();
-
-    // Calculate remaining time for Wave 2
-    const timeUsed = Date.now() - startTotal;
-    const remainingTime = Math.max(1, TIMEOUT_MS - timeUsed);
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT')), remainingTime)
-    );
-
-    try {
-      const finalReport = await Promise.race([runWave2, timeoutPromise]);
-      console.log(`[Pipeline] FULL COMPLETED in ${Date.now() - startTotal}ms`);
-      return { report: finalReport };
-    } catch (err) {
-      if (err.message === 'TIMEOUT') {
-        console.warn(`[Pipeline] Wave 2 Timed out after ${TIMEOUT_MS}ms. Returning Wave 1 data.`);
-        return { report: baseReport, partial: true };
-      }
-      throw err;
     }
+    console.log('[WAVE_2_DONE/Vision]', Date.now() - pipelineStart, 'ms');
 
-  } catch (error) {
-    console.error('PIPELINE FAILURE:', error);
-    // Ultimate fallback if Wave 1 fails or other crash
-    return {
-      success: false,
-      report: {
-        product: { name: "System Busy", brand: "Retry", category: "Error", source: inputData.type },
-        verdict: { label: "ERROR", reason: "Critical system delay. Please try a simpler entry.", score: 0, confidence: 0 },
-        nutrition_analysis: { calories: "----", sugar_g: "----", risk_flags: [] },
-        personalized_advice: { summary: "The AI is currently under high load. Please try again in 30 seconds." }
-      }
+    // ── WAVE 3: CORE CLINICAL AUDIT (70B PARALLEL) ──
+    updateStatus(4, 'Executing multi-agent clinical audit (70B)...');
+    
+    // Run independent clinical agents in parallel
+    const [ingredientsData, claimsData] = await Promise.all([
+      analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }),
+      analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' })
+    ]);
+    console.log('[WAVE_3_DONE/Clinical Audit]', Date.now() - pipelineStart, 'ms');
+
+    // ── WAVE 4: PERSONALIZATION & EVIDENCE (REQUIRES WAVE 3) ──
+    updateStatus(7, 'Synthesizing personalized health impact...');
+    
+    const [evidenceData, alternativesData, personalizedData] = await Promise.all([
+      fetchEvidence(ingredientsData, !isImage, false, { modelType: 'agility' }),
+      findAlternatives(product, ingredientsData, persona, { modelType: 'agility' }),
+      analyzePersonalization(ingredientsData, persona, { modelType: 'agility' })
+    ]);
+    console.log('[WAVE_4_DONE/Deep Reason]', Date.now() - pipelineStart, 'ms');
+
+    // ── STEP 8: FINAL VERDICT (70B CLINICAL) ──
+    updateStatus(8, 'Determining clinical verdict...');
+    const verdictData = await generateVerdict(
+      { product, ingredients: ingredientsData, marketingClaims: claimsData, persona: personalizedData },
+      { modelType: 'agility' }
+    );
+    console.log('[VERDICT_DONE]', Date.now() - pipelineStart, 'ms');
+
+    // ── STEP 9: ASSEMBLY (JAVASCRIPT) ──
+    updateStatus(9, 'Assembling high-fidelity report...');
+    const rawReport = {
+      product,
+      ingredients: ingredientsData,
+      marketingClaims: claimsData,
+      persona: personalizedData,
+      evidence: evidenceData,
+      alternatives: alternativesData,
+      verdict: verdictData
     };
+
+    const finalReport = assembleReport(rawReport);
+    
+    console.log(`[PIPELINE_TOTAL] Protocol complete in ${((Date.now() - pipelineStart)/1000).toFixed(2)}s`);
+    return validatePipelineOutput(finalReport);
+
+  } catch (err) {
+    console.error('[Pipeline] Critical Protocol Failure:', err);
+    updateStatus(0, 'System failure during clinical analysis.');
+    throw err;
   }
 }
 

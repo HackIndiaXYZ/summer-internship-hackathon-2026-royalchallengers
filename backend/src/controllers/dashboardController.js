@@ -13,17 +13,27 @@ const getDashboardSummary = async (req, res) => {
     const scansResult = await query('SELECT * FROM scans WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10', [userId]);
     const scans = scansResult.rows;
 
-    // 3. Calculate Goal-Aware Health Score
+    // 3. Calculate Risk-Aware Health Score (V5.0)
     let healthScore = 75; // Baseline
     if (scans.length > 0) {
       const recommendedCount = scans.filter(s => s.overall_verdict === 'recommended' || s.overall_verdict === 'safe').length;
       const avoidCount = scans.filter(s => s.overall_verdict === 'avoid').length;
       const total = scans.length;
 
-      // Goal-weighted adjustment
+      // Persona-Condition mapping (e.g., Sodium for Hypertension)
+      const healthConditions = profile.health_conditions || [];
+      const hasHighRiskProfile = healthConditions.some(c => 
+        ['Hypertension', 'Diabetes', 'Cholesterol', 'PCOS'].includes(c)
+      );
+
+      // Base Calculation
       const base = 70;
-      const adjustment = (recommendedCount * 8) - (avoidCount * 15) - ((total - recommendedCount - avoidCount) * 5);
-      healthScore = Math.min(Math.max(base + adjustment, 20), 100);
+      
+      // If user has high-risk conditions, double the penalty for 'avoid' products
+      const penaltyMultiplier = hasHighRiskProfile ? 2 : 1;
+      
+      const adjustment = (recommendedCount * 10) - (avoidCount * 15 * penaltyMultiplier) - ((total - recommendedCount - avoidCount) * 5);
+      healthScore = Math.min(Math.max(base + adjustment, 15), 100);
     }
 
     // 4. Generate AI Insight using Gemini

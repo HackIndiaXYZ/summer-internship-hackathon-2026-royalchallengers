@@ -258,7 +258,16 @@ const Dashboard = () => {
               {user ? (
                 realScans.length > 0 ? (
                   realScans.map((scan) => (
-                    <Link key={scan.id} to={`/analysis/${scan.id}`} className="bg-surface-container-lowest p-6 rounded-xl flex flex-wrap md:flex-nowrap items-center gap-6 shadow-sm hover:shadow-md transition-all group">
+                    <Link 
+                      key={scan.id} 
+                      to={`/analysis/${scan.id}`} 
+                      state={{ 
+                        analysis: typeof scan.analysis_result === 'string' ? JSON.parse(scan.analysis_result) : scan.analysis_result,
+                        productName: scan.product_name,
+                        imageUrl: scan.input_image 
+                      }}
+                      className="bg-surface-container-lowest p-6 rounded-xl flex flex-wrap md:flex-nowrap items-center gap-6 shadow-sm hover:shadow-md transition-all group"
+                    >
                       {/* Real scan rendering code */}
                       <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                         <span className="material-symbols-outlined text-3xl">
@@ -291,18 +300,74 @@ const Dashboard = () => {
                 )
               ) : (
                 <>
-                  {/* Mock Data for Guests */}
-                  {[1, 2].map((m) => (
-                    <div key={m} className="bg-surface-container-lowest p-6 rounded-xl flex items-center gap-6 opacity-60 grayscale-[0.5]">
-                      <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center text-outline">
-                        <span className="material-symbols-outlined text-3xl">biotech</span>
+                  {/* Mock Data for Guests — Now clickable and hydrated */}
+                  {[
+                    { id: 'SIM-MAGGI-01', name: 'Maggi 2-Minute Noodles', icon: 'barcode', verdict: 'limit' },
+                    { id: 'SIM-OATS-02', name: 'Quaker Oats (Plain)', icon: 'image', verdict: 'safe' }
+                  ].map((m) => (
+                    <Link 
+                      key={m.id} 
+                      to={`/analysis/${m.id}`}
+                      state={{
+                        analysis: m.id === 'SIM-MAGGI-01' ? {
+                          productName: "Maggi 2-Minute Noodles",
+                          brand: "Nestlé",
+                          overallVerdict: "limit",
+                          confidenceScore: 94,
+                          healthImpact: {
+                            personalizedSummary: "High sodium load (~0.8g/serving) detected. Refined flour base may trigger glycemic spikes in your profile.",
+                            personalizedRiskScore: 65
+                          },
+                          ingredients: [
+                            { name: "Refined Wheat Flour", standardGuideline: "WHO: Limit refined carbs", status: "Caution" },
+                            { name: "Palm Oil", standardGuideline: "AHA: High saturated fat", status: "Caution" },
+                            { name: "Iodized Salt", standardGuideline: "WHO: <5g/day total", status: "Harmful" }
+                          ],
+                          marketingClaims: [
+                            { claim: "No MSG added", verdict: "Misleading", verdictLabel: "MISLEADING CLAIM DETECTED", reality: "Contains naturally occurring glutamates from hydrolyzed protein." }
+                          ],
+                          adviceCard: {
+                            primaryAdvice: "Restrict consumption to once per 14-day cycle.",
+                            consumptionGuideline: "Pair with 200g of fibrous vegetables to mitigate glucose impact."
+                          }
+                        } : {
+                          productName: "Quaker Oats (Plain)",
+                          brand: "Quaker",
+                          overallVerdict: "safe",
+                          confidenceScore: 98,
+                          healthImpact: {
+                            personalizedSummary: "Excellent source of Beta-Glucan fiber. Highly cardioprotective for your lipid profile.",
+                            personalizedRiskScore: 15
+                          },
+                          ingredients: [
+                            { name: "Whole Grain Oats", standardGuideline: "FSSAI: High Fiber", status: "Acceptable" }
+                          ],
+                          marketingClaims: [
+                            { claim: "Heart Healthy", verdict: "True", verdictLabel: "CLAIM VERIFIED", reality: "Soluble fiber content is clinically proven to reduce LDL cholesterol." }
+                          ],
+                          adviceCard: {
+                            primaryAdvice: "Optimal for daily metabolic stability.",
+                            consumptionGuideline: "Ideal pre-workout or breakfast staple."
+                          }
+                        },
+                        productName: m.name
+                      }}
+                      className="bg-surface-container-lowest p-6 rounded-xl flex items-center gap-6 shadow-sm hover:shadow-md transition-all group"
+                    >
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${m.verdict === 'safe' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                        <span className="material-symbols-outlined text-3xl">{m.icon}</span>
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-bold text-on-surface">{m === 1 ? "Sample Formulation #A" : "Laboratory Reference #B"}</h3>
-                        <p className="text-sm text-on-surface-variant">Simulated Record</p>
+                        <h3 className="font-bold text-on-surface group-hover:text-primary transition-colors">{m.name}</h3>
+                        <p className="text-sm text-on-surface-variant flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/30" />
+                          Simulated Lab Record
+                        </p>
                       </div>
-                      <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-surface-container-high text-outline">GUEST PREVIEW</span>
-                    </div>
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${m.verdict === 'safe' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {m.verdict.toUpperCase()}
+                      </span>
+                    </Link>
                   ))}
                 </>
               )}

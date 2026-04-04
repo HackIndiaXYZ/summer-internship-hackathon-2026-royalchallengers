@@ -1,36 +1,47 @@
+const { runNvidiaAgent } = require('../lib/nvidia');
+
 /**
- * Recommendation Agent: Determines stance and gives advice based on goal alignment.
- * Optimized to return the full verdict synthesis.
+ * Clinical Health Strategist (V3.1) - WHO/FSSAI Anchored
+ * Logic: Generate actionable health advice based on the synthesized clinical profile.
+ * Protective Strategy: Ensure analysis data exists before strategy generation.
  */
-function getRecommendationPrompt(product, ingredients, personaContext) {
-  return `
-    You are a Senior Clinical Strategist & Health Analyst.
-    User Profile Context: ${JSON.stringify(personaContext)}
-    Product: ${JSON.stringify(product)}
-    Ingredients: ${JSON.stringify(ingredients)}
+async function generateRecommendations(analysisResults, persona, options = {}) {
+  // Defensive Guard
+  if (!analysisResults || !persona) {
+    return {
+      primary_advice: "Perform whole-food analysis manually due to specimen clarity issues.",
+      health_verdict: "Caution",
+      action_plan: ["Scan clearer product label for final verdict."]
+    };
+  }
 
-    Task:
-    1. Determine the Stance (RECOMMENDED, LIMIT, AVOID) following the user's primary goal.
-    2. Check "Never Ignore" list first. If any ingredient matches, it MUST be AVOID.
-    3. Calculate a Clinical Health Score (0.0 - 100.0) based on goal alignment.
-    4. Provide a Personalized Summary addressing the user's specifics.
-    5. Draft a detailed Clinical Analysis for the technical report.
+  const systemPrompt = `[MODE: CLINICAL_STRATEGIST_V3.1]
+  You are a Clinical Nutritionist. 
+  Based on the comprehensive chemical analysis provided, generate PERSONALIZED, EVIDENCE-BACKED health advice for the user persona.
+  
+  ---
+  ## CORE DIRECTIVES:
+  1. **Strict Benchmarking**: Use WHO/FSSAI guidelines as the absolute source of truth.
+  2. **Actionable Alternates**: Provide specific, concrete "Better Alternatives" if hazardous.
+  3. **Persona Alignment**: Map advice directly to ${persona.persona_type}.
+  
+  ---
+  ## OUTPUT SCHEMA:
+  {
+    "primary_advice": "string",
+    "daily_limit_warning": "string",
+    "persona_specific_risk": "string",
+    "action_plan": ["string", "string"],
+    "health_verdict": "Safe | Caution | Avoid"
+  }`;
 
-    Return JSON:
-    {
-      "stance": "RECOMMENDED", // RECOMMENDED, LIMIT, or AVOID
-      "score": "0.0 - 100.0",
-      "confidence": "0 - 100",
-      "personalizedSummary": "Summary addressing the user's clinical profile...",
-      "clinicalAnalysis": "Deep dive into the health implications...",
-      "strategy": { 
-        "intake": "Recommended intake level", 
-        "frequency": "Recommended frequency", 
-        "summary": "Overall strategy summary", 
-        "warnings": ["List of warnings"] 
-      }
-    }
-  `;
+  const result = await runNvidiaAgent(
+    "Generate personalized clinical health strategy.",
+    `ANALYSIS_DATA: ${JSON.stringify(analysisResults)}\n\nUSER_PERSONA: ${persona.persona_type}\n\n${systemPrompt}`,
+    { modelType: 'clinical', ensureJSON: true, ...options }
+  );
+
+  return result;
 }
 
-module.exports = { getRecommendationPrompt };
+module.exports = { generateRecommendations };

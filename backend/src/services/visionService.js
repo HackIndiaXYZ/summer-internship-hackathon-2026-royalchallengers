@@ -1,93 +1,82 @@
 const { runNvidiaAgent } = require('../lib/nvidia');
+const cloudinary = require('../lib/cloudinary');
 
 /**
- * High-Accuracy Two-Stage Vision Pipeline
- * Stage 1: Raw transcription with Llama 3.2 90B Vision
- * Stage 2: Logical structuring with Llama 3.1 70B Clinical
+ * HIGH-SPEED CLINICAL VISION PIPELINE (V4.6 - Production Ready)
+ * Stage 1: Consolidated OCR + Clinical Structuring + Safety Guard + Image Persistence.
+ * Optimized for <5s execution with 90B Vision model.
  */
 async function processProductImage(base64Image) {
-  // STAGE 1: High-Accuracy Raw OCR
-  const rawOcrPrompt = `You are an Expert OCR Machine v4.0 (Zero-Loss Transcription Mode).
-  Your mission is to transcribe EVERY character from the image with 100% fidelity.
-  
-  ---
-  ## CORE PRIORITIES
-  1. **Ingredients Block**: Usually small text, often listed after "Ingredients:" or "Contains:". Extract every single word.
-  2. **Nutrition Facts**: Look for tabular data or "Per 100g/serving" sections.
-  3. **Product Branding**: Extract the main brand and specific product name.
-  
-  ---
-  ## TECHNICAL RULES
-  * **No Summarization**: Do not omit items (e.g., if it says "Sugar, Salt (1%), Water", do not just write "Sugar").
-  * **Handle Varied Layouts**: Transcribe text even if it is vertically oriented, curved, or in very small font.
-  * **No JSON**: Just return clean, raw text preserving line breaks.
-  * **No Conversation**: Do not explain your output.`;
+  // 1. ASYNC IMAGE PERSISTENCE (Cloudinary)
+  const uploadPromise = cloudinary.uploader.upload(`data:image/jpeg;base64,${base64Image}`, {
+    folder: 'medo_veda_scans',
+  }).catch(err => {
+    console.error('[Vision Service] Cloudinary Upload Failed:', err.message);
+    return null;
+  });
 
-  console.log('[Vision Service] STAGE 1: Raw OCR (90B Vision)...');
+  const unifiedPrompt = `[MODE: CLINICAL_VISION_V4.6]
+  Deconstruct this specimen image with extreme scientific and medical precision.
   
-  const rawText = await runNvidiaAgent(
-    "Perform full transcription of the image.", 
-    rawOcrPrompt, 
+  1. SAFETY GUARD (LIVING_BEING): If this is a human, animal, or living organism (not a retail product/botanical specimen), set "living_being": true.
+  2. OCR_EXTRACTION: Extract ALL content, including:
+     - Full Brand and Product Name
+     - Full Ingredient list (including additives and E-numbers)
+     - Nutrition Facts (per 100g/serving: calories, sugars, proteins, fats, fiber)
+  3. CLINICAL_MAPPING: Map to the following schema:
+  
+  {
+    "living_being": boolean,
+    "product_name": "Full product name including brand",
+    "ingredients": "Comma separated string of ALL ingredients",
+    "nutrition": {
+      "calories": "number or null",
+      "sugars": "string or null",
+      "protein": "string or null",
+      "fiber": "string or null",
+      "total_fat": "string or null"
+    },
+    "category": "Food | Beverage | Supplement | Botanical | Non-Food",
+    "allergens": ["list", "of", "allergens"],
+    "health_flags": "Immediate clinical red flags (high SODIUM, trans-fats, etc.)"
+  }
+  
+  Note: If living_being is true, set all other clinical fields to "N/A" or null.`;
+
+  console.log('[Vision Service] Initiating Consolidated Clinical Scan (90B Vision)...');
+  
+  // RUN VISION AGENT
+  const visionPromise = runNvidiaAgent(
+    "Deconstruct this clinical specimen into structured data with a living-being check.", 
+    unifiedPrompt, 
     {
       modelType: 'vision',
       image: base64Image,
-      ensureJSON: false,
-      maxTokens: 2500,
-      retries: 2
-    }
-  );
-
-  if (!rawText || rawText.startsWith('Error:')) {
-    throw new Error(rawText || 'Raw OCR failed');
-  }
-
-  // STAGE 2: Clinical Structuring
-  console.log('[Vision Service] STAGE 2: Structuring Data (70B Clinical)...');
-  
-  const structurePrompt = `You are a Clinical Data Intake Specialist. 
-  Your goal is to map RAW OCR DATA into a high-precision Product Schema.
-  
-  ---
-  ## DATA SOURCE (RAW OCR):
-  """
-  ${rawText}
-  """
-  
-  ---
-  ## EXTRACTION PROTOCOL: "Deep Ingredient Mining"
-  1. **Identify Ingredients**: Even if the word "Ingredients" is missing, look for lists of food items (e.g., "Wheat, Sugar, Soy...").
-  2. **Format**: Return "ingredients" as a clean comma-separated string.
-  3. **Nutritional Estimation**: If numeric values are missing or garbled, use your clinical knowledge to ESTIMATE them based on the product type (e.g., if it's a cookie, estimate sugar/fat per 100g). NEVER leave null.
-  
-  ---
-  ## FEW-SHOT EXAMPLE:
-  Input: "Fresh Milk. 3.5% fat. Contains: Milk, Vitamin D."
-  Output: {
-    "brand": "Generic",
-    "name": "Fresh Milk",
-    "ingredients": "Milk, Vitamin D",
-    "nutrition": { "fat": 3.5, "calories": 60, "protein": 3.2 },
-    "claims": ["3.5% fat"]
-  }
-  
-  ---
-  ## FINAL RULES:
-  * Output ONLY raw JSON.
-  * No markdown blocks.
-  * Standardize units to metric (g, mg, kcal).`;
-
-  const structuredResult = await runNvidiaAgent(
-    "Structure the provided OCR text into the product schema.",
-    structurePrompt,
-    {
-      modelType: 'clinical',
       ensureJSON: true,
-      maxTokens: 2000
+      maxTokens: 3500
     }
   );
 
-  const parsed = JSON.parse(structuredResult);
-  return { raw: rawText, structured: parsed };
+  // Await both upload and vision analysis
+  const [result, cloudinaryRes] = await Promise.all([visionPromise, uploadPromise]);
+
+  // If we detect a living being, we flag it immediately for the orchestrator to abort
+  if (result?.living_being) {
+    console.warn('[Vision Service] LBS_ALERT: Living being detected in scan. Aborting pipeline.');
+    return {
+      living_being: true,
+      raw: "LIVING_BEING_DETECTED",
+      structured: { product_name: "N/A - Non-Product Specimen", ingredients: "N/A" },
+      image_url: cloudinaryRes?.secure_url || null
+    };
+  }
+
+  return { 
+    living_being: false,
+    raw: result?.ingredients || "Extraction incomplete",
+    structured: result || {},
+    image_url: cloudinaryRes?.secure_url || null 
+  };
 }
 
 module.exports = { processProductImage };

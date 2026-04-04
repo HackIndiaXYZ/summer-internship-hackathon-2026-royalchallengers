@@ -48,14 +48,13 @@ CREATE TABLE IF NOT EXISTS scans (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           UUID REFERENCES users(id) ON DELETE CASCADE,
   product_id        UUID REFERENCES products(id),
-  input_method      VARCHAR(10) CHECK (
-                      input_method IN ('barcode', 'image', 'text', 'voice')
-                    ),
+  input_method      VARCHAR(20),
   persona_snapshot  JSONB,
   analysis_result   JSONB NOT NULL,
-  overall_verdict   VARCHAR(10) CHECK (
-                      overall_verdict IN ('safe', 'limit', 'avoid')
-                    ),
+  overall_verdict   VARCHAR(20),
+  product_name      VARCHAR(255),
+  health_score      NUMERIC,
+  input_image       TEXT,
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 

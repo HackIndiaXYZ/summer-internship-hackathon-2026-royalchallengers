@@ -1,29 +1,42 @@
+const { runNvidiaAgent } = require('../lib/nvidia');
+
 /**
- * Ingredient Agent: Evaluates ingredients based on the user's goal.
+ * Agent 3 — Ingredient Classification Agent (V4.0)
+ * Logic: Classify ingredients via WHO/FSSAI guidelines and persona lens.
  */
-function getIngredientPrompt(ingredients, personaContext) {
-  return `
-    You are a Molecular Toxicologist.
-    User Profile Context: ${JSON.stringify(personaContext)}
-    Product Ingredients: ${JSON.stringify(ingredients)}
+async function analyzeIngredients(ingredients, productData, persona, options = {}) {
+  // Defensive Guard
+  if (!ingredients || !productData) {
+    return [];
+  }
 
-    Task:
-    Map every ingredient and classify as:
-    1. Goal-Supportive: (e.g., Whey Protein for Muscle Gain).
-    2. Neutral: (e.g., Water, Salt).
-    3. Goal-Harming: (e.g., Added Sugar for Weight Loss).
+  const systemPrompt = `[MODE: SCIENTIFIC_AUDITOR_V4.0]
+    Audit ingredients: ${ingredients} for Product: ${productData.productName}
+    User Persona Context: ${JSON.stringify(persona)}
+    
+    3. Formatting: Guidelines must be extremely concise (e.g., "FSSAI (2011)", "WHO (2020)"). Never use full regulatory names or long titles.
+    4. Clinical Precision: Ensure guidelines are relevant to the ingredient's risk profile (e.g., Sodium -> WHO/FSSAI salt limits).
+    4. Classify: Acceptable (safe) | Caution (limit) | Harmful (avoid).
+    5. Apply the persona lens: an ingredient may be Caution for this user but Acceptable for others.
+    
+    CRITICAL: Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
 
-    Evaluate molecular function and risk levels (Low, Medium, High).
-    Identify top 3 critical molecular concerns.
+    ## SCHEMA (Array of objects):
+    [
+      {
+        "name": "string — ingredient name exactly as on label",
+        "standardGuideline": "string — short WHO/FSSAI reference",
+        "status": "Acceptable | Caution | Harmful"
+      }
+    ]`;
 
-    Return ONLY JSON:
-    {
-      "ingredients": [
-        { "name": "", "classification": "goal-supportive|neutral|goal-harming", "risk": "low|medium|high", "function": "", "concern": "" }
-      ],
-      "topConcerns": [""]
-    }
-  `;
+  const result = await runNvidiaAgent(
+    `Classify clinical ingredients for: ${productData.productName}`,
+    systemPrompt,
+    { modelType: 'clinical', ensureJSON: true, ...options }
+  );
+
+  return result || [];
 }
 
-module.exports = { getIngredientPrompt };
+module.exports = { analyzeIngredients };
