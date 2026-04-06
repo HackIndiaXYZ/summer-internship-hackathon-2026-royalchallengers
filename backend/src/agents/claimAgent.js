@@ -43,7 +43,7 @@ async function analyzeClaims(productName, ingredients, claimsList = [], options 
   const result = await runNvidiaAgent(
     `Verify claims for: ${productName}. Claims Provided: ${JSON.stringify(claimsList)}`,
     systemPrompt,
-    { modelType: 'clinical', ensureJSON: true, ...options }
+    { modelType: 'agility', ensureJSON: true, ...options }
   );
 
   return result || [];

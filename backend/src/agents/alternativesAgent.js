@@ -36,7 +36,7 @@ async function findAlternatives(productData, ingredientsAnalysis, persona, optio
   const result = await runNvidiaAgent(
     `Finding 3 Indian healthy swaps for: ${productData.productName}`,
     systemPrompt,
-    { modelType: 'clinical', ensureJSON: true, ...options }
+    { modelType: 'agility', ensureJSON: true, ...options }
   );
 
   return result || [];

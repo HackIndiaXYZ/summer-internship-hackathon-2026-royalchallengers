@@ -33,7 +33,7 @@ async function analyzeIngredients(ingredients, productData, persona, options = {
   const result = await runNvidiaAgent(
     `Classify clinical ingredients for: ${productData.productName}`,
     systemPrompt,
-    { modelType: 'clinical', ensureJSON: true, ...options }
+    { modelType: 'agility', ensureJSON: true, ...options }
   );
 
   return result || [];

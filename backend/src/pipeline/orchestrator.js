@@ -121,13 +121,12 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
       }
 
       // ══════════════════════════════════════════════════════════════
-      // WAVE 2: ALL 5 DOWNSTREAM AGENTS IN PARALLEL
-      // ingredients + claims + personalization + evidence + alternatives
-      // None of these depend on EACH OTHER (all depend only on product + persona)
+      // WAVE 2: INGREDIENTS + CLAIMS (Data Extraction)
+      // These extract the core knowledge needed for downstream risk analysis
       // ══════════════════════════════════════════════════════════════
-      updateStatus(4, 'Running parallel clinical audit...');
+      updateStatus(4, 'Extracting ingredient & claim data...');
 
-      const [ingredientsData, claimsData, personalizedData, evidenceData, alternativesData] = await Promise.all([
+      const [ingredientsData, claimsData] = await Promise.all([
         safeAgentCall(
           () => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }),
           'IngredientAgent', [], 15000
@@ -135,25 +134,35 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         safeAgentCall(
           () => analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' }),
           'ClaimAgent', [], 15000
-        ),
+        )
+      ]);
+      console.log('[WAVE_2_DONE]', Date.now() - pipelineStart, 'ms');
+
+      // ══════════════════════════════════════════════════════════════
+      // WAVE 3: PERSONALIZATION + EVIDENCE + ALTERNATIVES
+      // These CONSUME the ingredient data for personalized risk scoring
+      // ══════════════════════════════════════════════════════════════
+      updateStatus(6, 'Calculating personalized health impact...');
+
+      const [personalizedData, evidenceData, alternativesData] = await Promise.all([
         safeAgentCall(
-          () => analyzePersonalization([], persona, { modelType: 'agility' }),
+          () => analyzePersonalization(ingredientsData, persona, { modelType: 'agility' }),
           'PersonalizationAgent',
           { dailyConsumption: { headline: "Impact analysis pending", impact: "0%", warnings: [] }, rescoredIngredients: [] },
           15000
         ),
         safeAgentCall(
-          () => fetchEvidence([], !isImage, false, { modelType: 'agility' }),
+          () => fetchEvidence(ingredientsData, !isImage, false, { modelType: 'agility' }),
           'EvidenceAgent',
           { dataSourceFlags: { evidenceLayer: false, fssai: false }, guidelineMatches: [] },
           15000
         ),
         safeAgentCall(
-          () => findAlternatives(product, [], persona, { modelType: 'agility' }),
+          () => findAlternatives(product, ingredientsData, persona, { modelType: 'agility' }),
           'AlternativesAgent', [], 15000
         )
       ]);
-      console.log('[WAVE_2_DONE]', Date.now() - pipelineStart, 'ms');
+      console.log('[WAVE_3_DONE]', Date.now() - pipelineStart, 'ms');
 
       // ══════════════════════════════════════════════════════════════
       // WAVE 3: VERDICT (requires ingredients + claims + persona)
@@ -178,7 +187,11 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         product,
         ingredients: ingredientsData,
         marketingClaims: claimsData,
-        persona: personalizedData,
+        persona: personalizedData, // personalized health impact
+        personaContext: {          // profile context for assemblyAgent
+          userRiskLevel: persona.personaType || "Moderate",
+          analysisLens: persona.personalizationLens || "Standard health review."
+        },
         evidence: evidenceData,
         alternatives: alternativesData,
         verdict: verdictData
