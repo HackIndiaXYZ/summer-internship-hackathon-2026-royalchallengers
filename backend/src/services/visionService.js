@@ -1,116 +1,76 @@
 const { runNvidiaAgent } = require('../lib/nvidia');
 
 /**
- * HIGH-SPEED CLINICAL VISION PIPELINE (V5.0 - Production Fix)
- * Stage 1: Consolidated OCR + Clinical Structuring + Safety Guard.
- * 
- * CRITICAL FIX: This function now correctly handles BOTH:
- *   - Cloudinary URLs (when called from visionController image pipeline)
- *   - Base64 strings (when called from legacy extractImageText)
- * 
- * Cloudinary upload is handled by the CALLER (visionController), NOT here.
- * This prevents the double-upload bug that caused pipeline stalls.
+ * HIGH-SPEED CLINICAL VISION PIPELINE (V5.2 — 15s Hardened)
+ * Optimized for rapid specimen identification and early category exit.
  */
 async function processProductImage(imageInput) {
   const startTime = Date.now();
-  
-  // Determine if input is a URL or base64
   const isUrl = typeof imageInput === 'string' && imageInput.startsWith('http');
-  
-  console.log(`[Vision Service] Input type: ${isUrl ? 'URL' : 'base64'} | Length: ${imageInput?.length || 0}`);
+  const imageRef = isUrl ? imageInput : imageInput;
 
-  const unifiedPrompt = `[MODE: CLINICAL_VISION_V5.1]
-  Deconstruct this specimen image with extreme scientific and medical precision.
+  const unifiedPrompt = `[MODE: CLINICAL_VISION_V5.2 — SPEED_OPTIMIZED]
+  Objective: Deconstruct this specimen with extreme precision for high-speed clinical analysis.
   
-  1. SAFETY GUARD (CATEGORY): 
-     - If this is a human, animal, electronic, clothing, or any NON-FOOD/NON-RETAIL product, set "category": "Non-Food" and "living_being": true.
-     - If it is a food/beverage/supplement, set "category": "Food" and "living_being": false.
+  1. CATEGORY GUARD: 
+     - If this is NOT a retail food, beverage, or supplement product (human face, electronic, clothing, pet, etc.), set "category": "Non-Food" and "living_being": true.
+     - If it IS consumable, set "category": "Food" and "living_being": false.
   
-  2. OCR_EXTRACTION: Extract ALL content, including:
-     - Full Brand and Product Name
-     - Full Ingredient list (including additives and E-numbers)
-     - Nutrition Facts: Extract Energy (kcal), Total Fat (g), Total Sugars (g), Salt/Sodium (g), Protein (g), Total Carbohydrates (g).
-     - CONVERSION RULES:
-       - Always use values per 100g. If only 'per serving' is shown, calculate per 100g based on serving size.
-       - Energy: If in kJ, convert: kcal = kJ / 4.184.
-       - Salt: If only Sodium (mg) is given, convert: Salt (g) = (Sodium / 1000) * 2.5.
+  2. OCR_CORE: Extract Brand, Name, Ingredients, and Nutrition (Energy kcal, Fat, Sugars, Salt, Protein, Carbs). 
+     - PER 100g ONLY. Convert kJ to kcal (/4.184) and Sodium to Salt (mg/1000 * 2.5) if needed.
   
-  3. CLINICAL_MAPPING: Map to the following schema:
-  
+  3. MAPPING:
   {
     "living_being": boolean,
-    "product_name": "Full product name including brand",
-    "brand": "Brand name if visible",
-    "ingredients": "Comma separated string of ALL ingredients",
-    "nutrition": {
-      "calories": number | null,
-      "fat": number | null,
-      "sugar": number | null,
-      "salt": number | null,
-      "protein": number | null,
-      "carbohydrates": number | null
-    },
-    "marketing_claims": ["list of claims visible on package"],
-    "category": "Food | Beverage | Supplement | Botanical | Non-Food",
-    "allergens": ["list", "of", "allergens"],
-    "health_flags": "Immediate clinical red flags"
+    "product_name": "Full name + brand",
+    "brand": "Brand name",
+    "ingredients": "Comma separated ingredients",
+    "nutrition": { "calories": number|null, "fat": number|null, "sugar": number|null, "salt": number|null, "protein": number|null, "carbohydrates": number|null },
+    "marketing_claims": ["list"],
+    "category": "Food|Beverage|Supplement|Non-Food"
   }
   
-  Note: If any nutrition value is not visible but you can identify the product precisely, provide the standard values. Otherwise set to null.`;
+  Note: Prioritize speed. If data is obscured, use standard values based on product category.`;
 
-  console.log('[Vision Service] Initiating Clinical Scan (90B Vision)...');
+  console.log('[Vision Service] Initiating 15s High-Speed Discovery...');
   
   try {
-    // Build the image reference for the NVIDIA API
-    // The NVIDIA vision model accepts both URLs and base64 data URIs
-    const imageRef = isUrl ? imageInput : imageInput;
-
     const result = await runNvidiaAgent(
-      "Deconstruct this clinical specimen into structured data with a living-being check.", 
+      "Classify and extract clinical specimen data.", 
       unifiedPrompt, 
       {
         modelType: 'vision',
         image: imageRef,
         ensureJSON: true,
-        maxTokens: 3000,
-        retries: 2  // Reduced retries for speed — 2 retries max instead of 3
+        maxTokens: 1200, // Reduced from 3000 to save time
+        retries: 1      // Reduced from 2 to save time — if it fails once, we fallback to research
       }
     );
 
     const elapsed = Date.now() - startTime;
-    console.log(`[Vision Service] Vision complete in ${elapsed}ms`);
+    console.log(`[Vision Service] Discovery complete in ${elapsed}ms`);
 
-    // If we detect a living being, flag it immediately for the orchestrator to abort
-    if (result?.living_being) {
-      console.warn('[Vision Service] LBS_ALERT: Living being detected. Aborting pipeline.');
+    if (result?.living_being || result?.category === 'Non-Food') {
       return {
         living_being: true,
-        raw: "LIVING_BEING_DETECTED",
-        structured: { product_name: "N/A - Non-Product Specimen", ingredients: "N/A" },
+        category: 'Non-Food',
+        structured: { product_name: "Non-Food Specimen", ingredients: "N/A" },
         image_url: isUrl ? imageInput : null
       };
     }
 
     return { 
       living_being: false,
-      raw: result?.ingredients || "Extraction incomplete",
+      category: result?.category || 'Food',
+      raw: result?.ingredients || "",
       structured: result || {},
       image_url: isUrl ? imageInput : null
     };
   } catch (err) {
-    console.error(`[Vision Service] CRITICAL FAILURE after ${Date.now() - startTime}ms:`, err.message);
-    // Return a structured error instead of throwing — prevents pipeline stall
+    console.error(`[Vision Service] FAILED after ${Date.now() - startTime}ms:`, err.message);
     return {
       living_being: false,
-      raw: "Vision extraction failed",
-      structured: {
-        product_name: "Unknown Product",
-        brand: null,
-        ingredients: "",
-        nutrition: null,
-        marketing_claims: [],
-        category: "Unknown"
-      },
+      structured: { product_name: "Extraction Failed", ingredients: "" },
       image_url: isUrl ? imageInput : null,
       error: err.message
     };

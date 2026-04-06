@@ -1,49 +1,48 @@
 const { runNvidiaAgent } = require('../lib/nvidia');
 
 /**
- * Agent 4 — Claim Verification Agent (V4.0)
+ * Agent 4 — Claim Verification Agent (V5.1 — Clinical Hardened)
  * Logic: Verify marketing claims against actual ingredient data.
+ * 
+ * TARGET: NO AI-BOILERPLATE. ONLY CLINICAL TRUTH.
  */
 async function analyzeClaims(productName, ingredients, claimsList = [], options = {}) {
-  // If claimsList is empty, we must infer the "Implicit Brand Positioning"
-  // This prevents the UI from showing generic/hallucinated data like '100% Natural'
   const finalClaims = (claimsList && claimsList.length > 0) ? claimsList : [`Implicit product positioning for ${productName}`];
 
-  const systemPrompt = `[MODE: CLAIM_AUDITOR_V5.0]
+  const systemPrompt = `[MODE: CLAIM_AUDITOR_V5.1]
     Audit marketing claims for Product: ${productName}
-    Ingredients List: ${ingredients}
+    Actual Ingredients: ${ingredients}
     
-    TASK: Cross-examine label "Perception" vs clinical "Reality".
+    TASK: Contrast label "Perception" with clinical "Reality".
     
-    1. For each marketing claim (or implicit positioning): Compare it against actual ingredients and known health research.
-    2. Framing: 
-       - "Perception" is the brand message or positioning (e.g., "Weight Loss Support", "Natural", "High Protein").
-       - "Reality" is the biological impact (e.g., "Contains 40g added sugar/serving which spikes insulin").
-    3. Verdict: True (Matches data) | Misleading (Partially true but deceptive) | False (Contradicts data).
-    4. verdictLabel: "CLAIM VERIFIED" | "MISLEADING CLAIM DETECTED" | "FALSE CLAIM".
-    5. reality: Describe the clinical reality in EXACTLY ONE SHORT LINE (max 15 words).
-    6. explanation: ONE CLEAR TECHNICAL REASON why this reality exists (e.g., "Clinical studies link Ingredient X to metabolic distress and gut disruption").
-    7. research_context: A 15-20 word scientific reasoning based on physiological impact (e.g., "The high glycemic index of maltodextrin causes rapid insulin spikes, leading to insulin resistance over repeated exposure").
+    STRICT PROHIBITIONS:
+    - NEVER use the phrase "AI detected ingredients".
+    - NEVER use the phrase "contradict global health standards".
+    - NEVER use generic opening statements.
+    
+    1. Framing: 
+       - "Perception" is the brand message/positioning.
+       - "Reality" is the biological/clinical impact.
+    2. Reality Field: Describe the clinical truth in EXACTLY ONE SHORT LINE (max 15 words). Focus on specific ingredients (e.g., "Maltodextrin spikes blood sugar level rapidly," instead of "AI detected bad things").
+    3. Explanation: One clear technical reason (e.g., "High fructose corn syrup linked to non-alcoholic fatty liver disease").
+    4. Research Context: 15-20 word scientific reasoning based on physiological impact.
+ 
+    Return ONLY valid JSON between <<<JSON_START>>> and <<<JSON_END>>>.
 
-    ## IMPORTANT:
-    If no explicit claims are found, use the product's NAME and CATEGORY to define the "Perception" (e.g., A "Healthy" bar's perception is "Good for regular consumption").
-
-    CRITICAL: Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
-
-    ## SCHEMA (Array of objects):
+    ## SCHEMA:
     [
       {
-        "claim": "string — exact claim OR inferred perception",
+        "claim": "string",
         "verdict": "True | Misleading | False",
-        "verdictLabel": "string — from options above",
-        "reality": "string — ONE LINE clinical truth, max 15 words",
+        "verdictLabel": "CLAIM VERIFIED | MISLEADING CLAIM | FALSE CLAIM",
+        "reality": "string — SPECIFIC CLINICAL TRUTH (15 words max)",
         "explanation": "string — technical reason",
-        "research_context": "string — 15-20 word scientific reasoning"
+        "research_context": "string — 15-20 word science background"
       }
     ]`;
 
   const result = await runNvidiaAgent(
-    `Verify claims for: ${productName}. Claims Provided: ${JSON.stringify(claimsList)}`,
+    `Verify claims for: ${productName}`,
     systemPrompt,
     { modelType: 'agility', ensureJSON: true, ...options }
   );

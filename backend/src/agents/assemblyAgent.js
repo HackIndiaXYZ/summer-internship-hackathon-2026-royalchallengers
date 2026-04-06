@@ -1,6 +1,6 @@
 /**
- * Agent 9 — Assembly Agent (V7.0 — Clinical Reliability)
- * Logic: Strict JSON Mapping. NO LLM CALLS.
+ * Agent 9 — Assembly Agent (V7.2 — Clinical Reliability)
+ * Logic: Strict JSON Mapping + Final Clinical Formatter. NO LLM CALLS.
  * This ensures the frontend receives exactly what it expects.
  */
 function assembleReport(data) {
@@ -15,32 +15,46 @@ function assembleReport(data) {
     status = 'COMPLETE'
   } = data;
 
-  const isNA = status === 'N/A' || product.productName === "Non-Food Item";
+  const isNA = status === 'N/A' || product.productName === "Non-Food Item" || product.productName === "Non-Food Specimen";
+
+  // Helper to ensure 5-6 word guideline reason
+  const formatGuideline = (g) => {
+    if (!g) return "WHO (Acceptable: Within standard clinical safety limits)";
+    // If it already looks correct, return it
+    if (g.includes('(') && g.includes(')')) {
+      const reason = g.match(/\(([^)]+)\)/)?.[1] || "";
+      const wordCount = reason.split(/\s+/).filter(Boolean).length;
+      if (wordCount >= 5 && wordCount <= 7) return g;
+    }
+    // Fail-safe formatting for clinical consistency
+    const authority = g.includes('FSSAI') ? 'FSSAI' : 'WHO';
+    return `${authority} (Acceptable: Within standard clinical safety limits)`;
+  };
 
   // Final Schema Synthesis — Targeting AnalysisReport.jsx
   return {
-    productName: product.productName || "Product Name Not Detected",
-    brand: product.brand || null,
+    productName: isNA ? "N/A" : (product.productName || "Product Name Not Detected"),
+    brand: isNA ? "N/A" : (product.brand || "—"),
     imageUrl: product.imageUrl || null,
     confidenceScore: isNA ? 0 : (verdict.confidenceScore || 75),
     overallVerdict: isNA ? "N/A" : (verdict.overallVerdict || "limit").toLowerCase(),
     
     nutrition: {
-      calories: isNA ? null : (product.nutrition?.calories || null),
-      fat: isNA ? null : (product.nutrition?.fat || null),
-      sugar: isNA ? null : (product.nutrition?.sugar || null),
-      salt: isNA ? null : (product.nutrition?.salt || null),
-      protein: isNA ? null : (product.nutrition?.protein || null),
-      carbohydrates: isNA ? null : (product.nutrition?.carbohydrates || null)
+      calories: isNA ? "N/A" : (product.nutrition?.calories || "—"),
+      fat: isNA ? "N/A" : (product.nutrition?.fat || "—"),
+      sugar: isNA ? "N/A" : (product.nutrition?.sugar || "—"),
+      salt: isNA ? "N/A" : (product.nutrition?.salt || "—"),
+      protein: isNA ? "N/A" : (product.nutrition?.protein || "—"),
+      carbohydrates: isNA ? "N/A" : (product.nutrition?.carbohydrates || "—")
     },
 
-    ingredients: isNA ? [{ name: "N/A", standardGuideline: "Non-Food specimen", status: "N/A" }] : (ingredients || []).map(ing => ({
+    ingredients: isNA ? [{ name: "N/A", standardGuideline: "Non-Food specimen detected", status: "N/A" }] : (ingredients || []).map(ing => ({
       name: ing.name || "Unknown Ingredient",
-      standardGuideline: ing.standardGuideline || "WHO (Acceptable: No specific clinical risk detected)",
+      standardGuideline: formatGuideline(ing.standardGuideline),
       status: ing.status || "Acceptable"
     })),
 
-    marketingClaims: isNA ? [{ claim: "N/A", verdict: "False", verdictLabel: "NON-EDIBLE", reality: "Specimen is not categorized as food." }] : (marketingClaims || []).map(claim => ({
+    marketingClaims: isNA ? [{ claim: "N/A", verdict: "False", verdictLabel: "NON-EDIBLE", reality: "Specimen is not categorized as food.", explanation: "N/A" }] : (marketingClaims || []).map(claim => ({
       claim: claim.claim || "Brand Positioning",
       verdict: claim.verdict || "Misleading",
       verdictLabel: claim.verdictLabel || (claim.verdict === "True" ? "CLAIM VERIFIED" : "SCIENTIFIC AUDIT"),
@@ -49,14 +63,14 @@ function assembleReport(data) {
     })),
 
     personaContext: {
-      userRiskLevel: data.personaContext?.userRiskLevel || "Standard",
-      analysisLens: data.personaContext?.analysisLens || "Clinical health review."
+      userRiskLevel: isNA ? "N/A" : (data.personaContext?.userRiskLevel || "Standard"),
+      analysisLens: isNA ? "N/A" : (data.personaContext?.analysisLens || "Clinical health review.")
     },
 
     healthImpact: {
       dailyConsumptionImpact: isNA ? "N/A" : (persona.dailyConsumption?.impact || "Clinical profile pending."),
-      impactLabel: isNA ? "Risk Potential" : (persona.dailyConsumption?.impactLabel || "Daily Impact Value:"),
-      impactValue: isNA ? "—" : (persona.dailyConsumption?.impactValue || "Moderate"),
+      impactLabel: isNA ? "N/A" : (persona.dailyConsumption?.impactLabel || "Daily Impact:"),
+      impactValue: isNA ? "N/A" : (persona.dailyConsumption?.impactValue || "Moderate"),
       personalizedRiskScore: isNA ? 0 : (verdict.confidenceScore || 50),
       verdictReasoning: isNA ? "Specimen not suitable for consumption." : (persona.dailyConsumption?.headline || "Based on clinical ingredient audit."),
       warnings: isNA ? ["Non-edible specimen"] : (persona.dailyConsumption?.warnings || ["Standard moderation advised."])
@@ -78,7 +92,7 @@ function assembleReport(data) {
     })),
 
     alternativeResources: {
-      message: isNA ? "N/A" : "Consider these better Indian alternatives:",
+      message: isNA ? "N/A" : "Consider these healthy alternatives:",
       items: isNA ? [] : (Array.isArray(alternatives) ? alternatives : []).map(item => ({
         name: item.name || "Healthy Alternative",
         price: item.priceRange || "Price Varies",

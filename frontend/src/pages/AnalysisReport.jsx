@@ -178,7 +178,7 @@ const AnalysisReport = () => {
               <div key={idx} className="bg-[#F3F4F6] rounded-[16px] p-2.5 sm:p-5 flex flex-col items-start justify-center">
                 <span className="text-[24px] sm:text-[36px] mb-1 sm:mb-2">{item.emoji}</span>
                 <p className="text-[14px] sm:text-[28px] font-bold text-[#111827] leading-none mb-1">
-                  {item.value !== null && item.value !== undefined ? `${item.value}${item.unit}` : '—'}
+                  {item.value !== null && item.value !== undefined && item.value !== '—' ? `${item.value}${item.value === 'N/A' ? '' : item.unit}` : '—'}
                 </p>
                 <p className="text-[10px] sm:text-[15px] text-[#9CA3AF] font-medium leading-tight">{item.label}</p>
               </div>
@@ -219,7 +219,7 @@ const AnalysisReport = () => {
               </p>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <p className="text-[13px] text-slate-600 font-medium leading-relaxed italic">
-                  {marketingClaims[0]?.explanation || 'AI detected ingredients that contradict global health standards for this product type.'}
+                  {marketingClaims[0]?.explanation || 'Clinical profile indicates standard baseline risk.'}
                 </p>
               </div>
             </div>

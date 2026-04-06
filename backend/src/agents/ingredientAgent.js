@@ -1,34 +1,46 @@
 const { runNvidiaAgent } = require('../lib/nvidia');
 
 /**
- * Agent 3 — Ingredient Classification Agent (V4.0)
+ * Agent 3 — Ingredient Classification Agent (V4.5 — Clinical Hardened)
  * Logic: Classify ingredients via WHO/FSSAI guidelines and persona lens.
+ * 
+ * TARGET: SUB-15S DELIVERY WITH 100% FORMAT COMPLIANCE.
  */
 async function analyzeIngredients(ingredients, productData, persona, options = {}) {
-  // Defensive Guard
-  if (!ingredients || !productData) {
-    return [];
-  }
+  if (!ingredients || !productData) return [];
 
-  const systemPrompt = `[MODE: SCIENTIFIC_AUDITOR_V4.0]
-    Audit ingredients: ${ingredients} for Product: ${productData.productName}
-    User Persona Context: ${JSON.stringify(persona)}
+  const systemPrompt = `[MODE: SCIENTIFIC_AUDITOR_V4.5]
+    Audit ingredients for Product: ${productData.productName}
+    User Persona: ${JSON.stringify(persona)}
     
-    3. Formatting: Guidelines must include the authority (WHO or FSSAI) followed by EXACTLY 5 to 6 words of research-backed context inside parentheses explaining why it is acceptable/caution/limit (e.g., "WHO (Acceptable: Within daily intake safety zone)", "FSSAI (Caution: Potential long-term gut inflammation)").
-    4. Clinical Precision: Ensure guidelines are relevant to the ingredient's risk profile (e.g., Sodium -> WHO/FSSAI salt limits).
-    5. Classify: Acceptable (safe) | Caution (limit) | Harmful (avoid).
-    6. Apply the persona lens: an ingredient may be Caution for this user but Acceptable for others.
+    CRITICAL FORMATTING RULE (NO EXCEPTIONS):
+    The "standardGuideline" field MUST start with the authority (WHO or FSSAI) followed by a 5 to 6 word research-backed sentence inside parentheses explaining the clinical reason.
     
-    CRITICAL: Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
+    VALID EXAMPLES:
+    - "WHO (Acceptable: Within daily intake safety zone)"
+    - "FSSAI (Caution: Potential long-term gut inflammation)"
+    - "WHO (Harmful: Linked to increased cardiac risk)"
+    
+    INVALID EXAMPLES (DO NOT USE):
+    - "WHO" (Too short)
+    - "FSSAI (Caution: This is bad)" (Too short)
+    - "WHO (Acceptable: This ingredient is generally considered safe for human consumption by most global authorities)" (Too long)
+    
+    TASK:
+    1. Extract name exactly as on label.
+    2. Classify: Acceptable | Caution | Harmful.
+    3. Provide the 5-6 word clinical reason in the required format.
+    
+    Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>>.
 
-    ## SCHEMA (Array of objects):
+    ## SCHEMA:
     [
       {
-        "name": "string — ingredient name exactly as on label",
-        "standardGuideline": "string — Format: Authority (Reason in 5-6 words)",
+        "name": "string",
+        "standardGuideline": "Authority (EXACTLY 5-6 word clinical reason in parentheses)",
         "status": "Acceptable | Caution | Harmful"
       }
-    ] `;
+    ]`;
 
   const result = await runNvidiaAgent(
     `Classify clinical ingredients for: ${productData.productName}`,
