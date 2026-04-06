@@ -22,7 +22,8 @@ async function analyzeClaims(productName, ingredients, claimsList = [], options 
     3. Verdict: True (Matches data) | Misleading (Partially true but deceptive) | False (Contradicts data).
     4. verdictLabel: "CLAIM VERIFIED" | "MISLEADING CLAIM DETECTED" | "FALSE CLAIM".
     5. reality: Describe the clinical reality in EXACTLY ONE SHORT LINE (max 15 words).
-    6. explanation: One clear technical reason why this reality exists (e.g., "Ingredient X is linked to metabolic distress").
+    6. explanation: ONE CLEAR TECHNICAL REASON why this reality exists (e.g., "Clinical studies link Ingredient X to metabolic distress and gut disruption").
+    7. research_context: A 15-20 word scientific reasoning based on physiological impact (e.g., "The high glycemic index of maltodextrin causes rapid insulin spikes, leading to insulin resistance over repeated exposure").
 
     ## IMPORTANT:
     If no explicit claims are found, use the product's NAME and CATEGORY to define the "Perception" (e.g., A "Healthy" bar's perception is "Good for regular consumption").
@@ -36,7 +37,8 @@ async function analyzeClaims(productName, ingredients, claimsList = [], options 
         "verdict": "True | Misleading | False",
         "verdictLabel": "string — from options above",
         "reality": "string — ONE LINE clinical truth, max 15 words",
-        "explanation": "string — technical reason"
+        "explanation": "string — technical reason",
+        "research_context": "string — 15-20 word scientific reasoning"
       }
     ]`;
 

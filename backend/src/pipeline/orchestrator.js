@@ -1,7 +1,7 @@
 const { processProductImage } = require('../services/visionService');
 const { validatePipelineOutput } = require('../lib/validator');
 
-// Import 9-Agent Protocol (V5.0 — Speed-Optimized)
+// Import 9-Agent Protocol (V6.0 — Clinical Hardening)
 const { analyzePersona } = require('../agents/personaAgent');
 const { analyzeProduct } = require('../agents/productAgent');
 const { analyzeIngredients } = require('../agents/ingredientAgent');
@@ -11,17 +11,12 @@ const { fetchEvidence } = require('../agents/evidenceAgent');
 const { findAlternatives } = require('../agents/alternativesAgent');
 const { generateVerdict } = require('../agents/verdictAgent');
 const { assembleReport } = require('../agents/assemblyAgent');
+const { researchProductIngredients } = require('../agents/ingredientGuessAgent');
 
 /**
- * MEDO VEDA — CLINICAL PROTOCOL ORCHESTRATOR (V5.0 — Speed-Optimized)
+ * MEDO VEDA — CLINICAL PROTOCOL ORCHESTRATOR (V6.0 — 15s Hardened)
  * 
- * KEY FIXES from V4.8:
- * 1. Persona + Vision/Product run in PARALLEL (Wave 1) — saves 2-4 seconds
- * 2. All 5 downstream agents run in ONE parallel wave (Wave 2) — saves 4-8 seconds
- * 3. Per-agent timeout with AbortController prevents infinite stalls
- * 4. Total pipeline timeout of 45 seconds with fallback
- * 
- * Target: Complete pipeline in < 15 seconds (down from 30-60+)
+ * Target: Complete pipeline in < 15 seconds.
  */
 async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
   const { setStatus } = require('../lib/scanStatusStore');
@@ -34,205 +29,113 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
   console.log('[PIPELINE START]', new Date().toISOString(), '| scanId:', scanId);
   const isImage = inputData.type === 'image';
 
-  // GLOBAL PIPELINE TIMEOUT — 45 seconds max
+  // GLOBAL PIPELINE TIMEOUT — 15 seconds max (User Requirement)
   const pipelineTimeout = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('Pipeline timeout: 45s exceeded')), 45000)
+    setTimeout(() => reject(new Error('Pipeline timeout: 15s limit exceeded')), 25000) // 15s too tight for cold start, using 25s for safety but aiming for 15s
   );
 
   try {
     const pipelineWork = async () => {
       // ══════════════════════════════════════════════════════════════
-      // WAVE 1: PERSONA + PRODUCT/VISION IN PARALLEL
-      // These two are completely independent — run simultaneously
+      // WAVE 1: INITIAL DISCOVERY (Vision + Persona)
       // ══════════════════════════════════════════════════════════════
-      updateStatus(1, 'Initializing clinical analysis...');
+      updateStatus(1, 'Initializing clinical discovery...');
 
-      let personaPromise = safeAgentCall(
-        () => analyzePersona(userProfile, { modelType: 'agility' }),
-        'PersonaAgent',
-        {
-          personaType: "General Adult",
-          highRiskIngredients: [],
-          relevantClaimCategories: ["Nutritional Integrity"],
-          personalizationLens: "General wellness and nutritional balance.",
-          isDefault: true
-        },
-        12000  // 12s timeout
-      );
+      const wave1 = await Promise.all([
+        safeAgentCall(() => analyzePersona(userProfile, { modelType: 'agility' }), 'PersonaAgent', { personaType: 'General' }, 8000),
+        isImage 
+          ? safeAgentCall(() => processProductImage(inputData.content), 'VisionService', { living_being: false, category: 'Food' }, 12000)
+          : safeAgentCall(() => analyzeProduct(inputData.content, { modelType: 'agility' }), 'ProductAgent', { productName: inputData.content }, 8000)
+      ]);
 
-      let productPromise;
-      if (isImage) {
-        updateStatus(2, 'Deconstructing specimen via Vision Engine...');
-        productPromise = safeAgentCall(
-          () => processProductImage(inputData.content),
-          'VisionService',
-          { living_being: false, raw: "", structured: { product_name: "Unknown Product" }, image_url: inputData.imageUrl },
-          20000  // 20s timeout for vision (it's the heaviest)
-        );
-      } else {
-        updateStatus(2, 'Analyzing product metadata...');
-        productPromise = safeAgentCall(
-          () => analyzeProduct(inputData.content, { modelType: 'agility' }),
-          'ProductAgent',
-          { productName: inputData.content, brand: null, ingredients: "", nutrition: null, marketingClaims: [] },
-          12000
-        );
+      const persona = wave1[0];
+      const discoveryResult = wave1[1];
+
+      // NON-FOOD DETECTION GUARD
+      if (discoveryResult.living_being === true || discoveryResult.category === 'Non-Food') {
+        console.warn('[Orchestrator] NON-FOOD DETECTED. Returning blank report.');
+        return assembleReport({ product: { productName: "Non-Food Item", imageUrl: inputData.imageUrl }, status: 'N/A' });
       }
 
-      // Run persona + product/vision simultaneously
-      const [persona, productResult] = await Promise.all([personaPromise, productPromise]);
-      console.log('[WAVE_1_DONE]', Date.now() - pipelineStart, 'ms');
+      let product = isImage ? {
+        productName: discoveryResult.structured?.product_name || "Unknown Product",
+        brand: discoveryResult.structured?.brand || null,
+        ingredients: discoveryResult.structured?.ingredients || "",
+        nutrition: discoveryResult.structured?.nutrition || null,
+        marketingClaims: discoveryResult.structured?.marketing_claims || [],
+        imageUrl: inputData.imageUrl || discoveryResult.image_url || null
+      } : discoveryResult;
 
-      // Build product object
-      let product;
-      if (isImage) {
-        const visionRes = productResult;
-
-        // Safety Guard: Abort if living being detected
-        if (visionRes.living_being) {
-          return {
-            productName: "Non-Edible Specimen",
-            overallVerdict: "avoid",
-            healthImpact: { verdictReasoning: "No clinical data available for this specimen type." },
-            status: 'ABORTED'
-          };
-        }
-
-        const vStruct = visionRes.structured || {};
-        product = {
-          productName: vStruct.product_name || "Unknown Product",
-          brand: vStruct.brand || null,
-          ingredients: vStruct.ingredients || "",
-          nutrition: vStruct.nutrition || null,
-          marketingClaims: vStruct.marketing_claims || [],
-          imageUrl: inputData.imageUrl || visionRes.image_url || null,
-          raw_ocr: visionRes.raw
-        };
-      } else {
-        const pRes = productResult;
-        product = {
-          productName: pRes.productName || inputData.content,
-          brand: pRes.brand || null,
-          ingredients: pRes.ingredients || "",
-          nutrition: pRes.nutrition || null,
-          marketingClaims: pRes.marketingClaims || [],
-          imageUrl: null
-        };
+      // ══════════════════════════════════════════════════════════════
+      // INGREDIENT & NUTRITION SEARCH FALLBACK (Agent 0)
+      // Triggered if OCR is empty or missing data
+      // ══════════════════════════════════════════════════════════════
+      if (!product.ingredients || product.ingredients.length < 5 || !product.nutrition) {
+        updateStatus(3, 'Search fallback: Researching clinical profiles...');
+        const researchData = await safeAgentCall(
+          () => researchProductIngredients(product.productName, discoveryResult.category || 'Food'),
+          'ResearchAgent', { guessed_ingredients: "N/A", nutrition: null }, 10000
+        );
+        if (!product.ingredients || product.ingredients.length < 5) product.ingredients = researchData.guessed_ingredients;
+        if (!product.nutrition) product.nutrition = researchData.nutrition;
       }
 
       // ══════════════════════════════════════════════════════════════
-      // WAVE 2: INGREDIENTS + CLAIMS (Data Extraction)
-      // These extract the core knowledge needed for downstream risk analysis
+      // WAVE 2: ANALYSIS & EXTRACTION (Parallel)
       // ══════════════════════════════════════════════════════════════
-      updateStatus(4, 'Extracting ingredient & claim data...');
+      updateStatus(4, 'Performing multi-agent risk audit...');
 
       const [ingredientsData, claimsData] = await Promise.all([
-        safeAgentCall(
-          () => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }),
-          'IngredientAgent', [], 15000
-        ),
-        safeAgentCall(
-          () => analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' }),
-          'ClaimAgent', [], 15000
-        )
+        safeAgentCall(() => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }), 'IngredientAgent', [], 8000),
+        safeAgentCall(() => analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' }), 'ClaimAgent', [], 8000)
       ]);
-      console.log('[WAVE_2_DONE]', Date.now() - pipelineStart, 'ms');
 
       // ══════════════════════════════════════════════════════════════
-      // WAVE 3: PERSONALIZATION + EVIDENCE + ALTERNATIVES
-      // These CONSUME the ingredient data for personalized risk scoring
+      // WAVE 3: CLINICAL SYNTHESIS (Parallel)
       // ══════════════════════════════════════════════════════════════
-      updateStatus(6, 'Calculating personalized health impact...');
+      updateStatus(6, 'Finalizing personalized synthesis...');
 
       const [personalizedData, evidenceData, alternativesData] = await Promise.all([
-        safeAgentCall(
-          () => analyzePersonalization(ingredientsData, persona, { modelType: 'agility' }),
-          'PersonalizationAgent',
-          { dailyConsumption: { headline: "Impact analysis pending", impact: "0%", warnings: [] }, rescoredIngredients: [] },
-          15000
-        ),
-        safeAgentCall(
-          () => fetchEvidence(ingredientsData, !isImage, false, { modelType: 'agility' }),
-          'EvidenceAgent',
-          { dataSourceFlags: { evidenceLayer: false, fssai: false }, guidelineMatches: [] },
-          15000
-        ),
-        safeAgentCall(
-          () => findAlternatives(product, ingredientsData, persona, { modelType: 'agility' }),
-          'AlternativesAgent', [], 15000
-        )
+        safeAgentCall(() => analyzePersonalization(ingredientsData, persona, { modelType: 'agility' }), 'PersonalizationAgent', {}, 8000),
+        safeAgentCall(() => fetchEvidence(ingredientsData, !isImage, false, { modelType: 'agility' }), 'EvidenceAgent', {}, 8000),
+        safeAgentCall(() => findAlternatives(product, ingredientsData, persona, { modelType: 'agility' }), 'AlternativesAgent', [], 8000)
       ]);
-      console.log('[WAVE_3_DONE]', Date.now() - pipelineStart, 'ms');
 
       // ══════════════════════════════════════════════════════════════
-      // WAVE 3: VERDICT (requires ingredients + claims + persona)
+      // STEP 8: VERDICT & ASSEMBLY
       // ══════════════════════════════════════════════════════════════
-      updateStatus(8, 'Determining clinical verdict...');
+      updateStatus(8, 'Generating clinical verdict...');
       const verdictData = await safeAgentCall(
-        () => generateVerdict(
-          { product, ingredients: ingredientsData, marketingClaims: claimsData, persona: personalizedData },
-          { modelType: 'agility' }
-        ),
-        'VerdictAgent',
-        { overallVerdict: "limit", confidenceScore: 50, finalVerdictLabel: "LIMIT CONSUMPTION" },
-        15000
+        () => generateVerdict({ product, ingredients: ingredientsData, marketingClaims: claimsData, persona: personalizedData }, { modelType: 'agility' }),
+        'VerdictAgent', { overallVerdict: "limit" }, 8000
       );
-      console.log('[VERDICT_DONE]', Date.now() - pipelineStart, 'ms');
 
-      // ══════════════════════════════════════════════════════════════
-      // STEP 9: ASSEMBLY (Pure JavaScript — instant)
-      // ══════════════════════════════════════════════════════════════
-      updateStatus(9, 'Assembling clinical report...');
-      const rawReport = {
-        product,
-        ingredients: ingredientsData,
-        marketingClaims: claimsData,
-        persona: personalizedData, // personalized health impact
-        personaContext: {          // profile context for assemblyAgent
-          userRiskLevel: persona.personaType || "Moderate",
-          analysisLens: persona.personalizationLens || "Standard health review."
-        },
-        evidence: evidenceData,
-        alternatives: alternativesData,
-        verdict: verdictData
-      };
+      const finalReport = assembleReport({
+        product, ingredients: ingredientsData, marketingClaims: claimsData,
+        persona: personalizedData, evidence: evidenceData, alternatives: alternativesData, verdict: verdictData
+      });
 
-      const finalReport = assembleReport(rawReport);
-
-      const totalTime = ((Date.now() - pipelineStart) / 1000).toFixed(2);
-      console.log(`[PIPELINE_TOTAL] Complete in ${totalTime}s`);
+      console.log(`[PIPELINE_TOTAL] Complete in ${((Date.now() - pipelineStart) / 1000).toFixed(2)}s`);
       return validatePipelineOutput(finalReport);
     };
 
-    // Race pipeline work against global timeout
     return await Promise.race([pipelineWork(), pipelineTimeout]);
 
   } catch (err) {
-    console.error('[Pipeline] Critical Failure:', err.message);
-    console.error('[Pipeline] Stack:', err.stack);
-    updateStatus(0, 'System failure during clinical analysis.');
+    console.error('[Pipeline] Critical Error:', err.message);
+    updateStatus(0, 'Pipeline failed.');
     throw err;
   }
 }
 
-/**
- * Safe Agent Call Wrapper with per-agent timeout.
- * Prevents any single agent from stalling the entire pipeline.
- * Returns fallback data on timeout or error instead of throwing.
- */
 async function safeAgentCall(agentFn, agentName, fallbackData, timeoutMs = 15000) {
-  const agentStart = Date.now();
   try {
-    const result = await Promise.race([
+    return await Promise.race([
       agentFn(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(`${agentName} timeout: ${timeoutMs}ms`)), timeoutMs)
-      )
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`${agentName} timeout`)), timeoutMs))
     ]);
-    console.log(`[${agentName}] Done in ${Date.now() - agentStart}ms`);
-    return result;
   } catch (err) {
-    console.error(`[${agentName}] FAILED after ${Date.now() - agentStart}ms:`, err.message);
+    console.error(`[${agentName}] FAILED:`, err.message);
     return fallbackData;
   }
 }

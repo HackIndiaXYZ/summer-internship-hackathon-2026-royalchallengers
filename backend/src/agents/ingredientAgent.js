@@ -14,7 +14,7 @@ async function analyzeIngredients(ingredients, productData, persona, options = {
     Audit ingredients: ${ingredients} for Product: ${productData.productName}
     User Persona Context: ${JSON.stringify(persona)}
     
-    3. Formatting: Guidelines must include the authority (WHO or FSSAI) followed by 4-5 words of research-backed context inside parentheses explaining why it is acceptable/caution/limit (e.g., "WHO (Acceptable: Within daily intake safety zone)", "FSSAI (Caution: Potential long-term gut inflammation)").
+    3. Formatting: Guidelines must include the authority (WHO or FSSAI) followed by EXACTLY 5 to 6 words of research-backed context inside parentheses explaining why it is acceptable/caution/limit (e.g., "WHO (Acceptable: Within daily intake safety zone)", "FSSAI (Caution: Potential long-term gut inflammation)").
     4. Clinical Precision: Ensure guidelines are relevant to the ingredient's risk profile (e.g., Sodium -> WHO/FSSAI salt limits).
     5. Classify: Acceptable (safe) | Caution (limit) | Harmful (avoid).
     6. Apply the persona lens: an ingredient may be Caution for this user but Acceptable for others.
@@ -25,10 +25,10 @@ async function analyzeIngredients(ingredients, productData, persona, options = {
     [
       {
         "name": "string — ingredient name exactly as on label",
-        "standardGuideline": "string — WHO/FSSAI + (4-5 words research context)",
+        "standardGuideline": "string — Format: Authority (Reason in 5-6 words)",
         "status": "Acceptable | Caution | Harmful"
       }
-    ]`;
+    ] `;
 
   const result = await runNvidiaAgent(
     `Classify clinical ingredients for: ${productData.productName}`,

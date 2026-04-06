@@ -19,10 +19,13 @@ async function processProductImage(imageInput) {
   
   console.log(`[Vision Service] Input type: ${isUrl ? 'URL' : 'base64'} | Length: ${imageInput?.length || 0}`);
 
-  const unifiedPrompt = `[MODE: CLINICAL_VISION_V5.0]
+  const unifiedPrompt = `[MODE: CLINICAL_VISION_V5.1]
   Deconstruct this specimen image with extreme scientific and medical precision.
   
-  1. SAFETY GUARD (LIVING_BEING): If this is a human, animal, or living organism (not a retail product/botanical specimen), set "living_being": true.
+  1. SAFETY GUARD (CATEGORY): 
+     - If this is a human, animal, electronic, clothing, or any NON-FOOD/NON-RETAIL product, set "category": "Non-Food" and "living_being": true.
+     - If it is a food/beverage/supplement, set "category": "Food" and "living_being": false.
+  
   2. OCR_EXTRACTION: Extract ALL content, including:
      - Full Brand and Product Name
      - Full Ingredient list (including additives and E-numbers)
@@ -31,6 +34,7 @@ async function processProductImage(imageInput) {
        - Always use values per 100g. If only 'per serving' is shown, calculate per 100g based on serving size.
        - Energy: If in kJ, convert: kcal = kJ / 4.184.
        - Salt: If only Sodium (mg) is given, convert: Salt (g) = (Sodium / 1000) * 2.5.
+  
   3. CLINICAL_MAPPING: Map to the following schema:
   
   {
@@ -52,7 +56,7 @@ async function processProductImage(imageInput) {
     "health_flags": "Immediate clinical red flags"
   }
   
-  Note: If any nutrition value is not visible or identifiable, set to null. Never guess.`;
+  Note: If any nutrition value is not visible but you can identify the product precisely, provide the standard values. Otherwise set to null.`;
 
   console.log('[Vision Service] Initiating Clinical Scan (90B Vision)...');
   
