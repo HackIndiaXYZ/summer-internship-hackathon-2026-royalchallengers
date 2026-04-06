@@ -60,7 +60,7 @@ const httpsAgent = new https.Agent({
 const nvidiaClient = axios.create({
   baseURL: 'https://integrate.api.nvidia.com/v1',
   httpsAgent,
-  timeout: 90000 
+  timeout: 30000   // 30s per-request timeout (down from 90s — prevents stalls)
 });
 
 /**
@@ -190,8 +190,8 @@ async function callNvidiaAPI(model, messages, maxTokens = 500) {
  */
 async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
   const { 
-    retries = 3, 
-    maxTokens = 1500, 
+    retries = 2,       // Reduced from 3 — faster failure with fallback data
+    maxTokens = 1200,  // Reduced from 1500 — faster responses
     modelType = 'clinical', 
     image = null,
     ensureJSON = true 
@@ -258,8 +258,8 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
     } catch (err) {
       const status = err.response?.status;
       if ((status === 429 || status >= 500) && attempt < retries) {
-        const delay = (Math.pow(2, attempt) * 4000) + (Math.random() * 2000); 
-        console.log(`[NVIDIA] Net Backoff: ${Math.round(delay/1000)}s...`);
+        const delay = (Math.pow(2, attempt) * 1500) + (Math.random() * 500); // Fast backoff: 1.5s/3.5s
+        console.log(`[NVIDIA] Backoff: ${Math.round(delay/1000)}s...`);
         await new Promise(r => setTimeout(r, delay)); 
       } else if (attempt === retries) {
         return ensureJSON ? { error: true, message: `System error: ${err.message}` } : `Error: ${err.message}`;

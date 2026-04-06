@@ -40,8 +40,10 @@ async function performScanAnalysis({ type, content, userId, imageUrl, scanId = n
   }
 
   // 5. Run the AI pipeline
+  // CRITICAL: Always pass the original content (base64 for images, text for text).
+  // imageUrl is ONLY for DB persistence, never for AI processing.
   const report = await runAnalysisPipeline(
-    { type, content: (type === 'image' && imageUrl) ? imageUrl : content, imageUrl },
+    { type, content, imageUrl },
     persona,
     scanId
   );

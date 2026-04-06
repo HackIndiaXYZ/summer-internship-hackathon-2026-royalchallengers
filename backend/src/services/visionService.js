@@ -1,21 +1,25 @@
 const { runNvidiaAgent } = require('../lib/nvidia');
-const cloudinary = require('../lib/cloudinary');
 
 /**
- * HIGH-SPEED CLINICAL VISION PIPELINE (V4.6 - Production Ready)
- * Stage 1: Consolidated OCR + Clinical Structuring + Safety Guard + Image Persistence.
- * Optimized for <5s execution with 90B Vision model.
+ * HIGH-SPEED CLINICAL VISION PIPELINE (V5.0 - Production Fix)
+ * Stage 1: Consolidated OCR + Clinical Structuring + Safety Guard.
+ * 
+ * CRITICAL FIX: This function now correctly handles BOTH:
+ *   - Cloudinary URLs (when called from visionController image pipeline)
+ *   - Base64 strings (when called from legacy extractImageText)
+ * 
+ * Cloudinary upload is handled by the CALLER (visionController), NOT here.
+ * This prevents the double-upload bug that caused pipeline stalls.
  */
-async function processProductImage(base64Image) {
-  // 1. ASYNC IMAGE PERSISTENCE (Cloudinary)
-  const uploadPromise = cloudinary.uploader.upload(`data:image/jpeg;base64,${base64Image}`, {
-    folder: 'medo_veda_scans',
-  }).catch(err => {
-    console.error('[Vision Service] Cloudinary Upload Failed:', err.message);
-    return null;
-  });
+async function processProductImage(imageInput) {
+  const startTime = Date.now();
+  
+  // Determine if input is a URL or base64
+  const isUrl = typeof imageInput === 'string' && imageInput.startsWith('http');
+  
+  console.log(`[Vision Service] Input type: ${isUrl ? 'URL' : 'base64'} | Length: ${imageInput?.length || 0}`);
 
-  const unifiedPrompt = `[MODE: CLINICAL_VISION_V4.6]
+  const unifiedPrompt = `[MODE: CLINICAL_VISION_V5.0]
   Deconstruct this specimen image with extreme scientific and medical precision.
   
   1. SAFETY GUARD (LIVING_BEING): If this is a human, animal, or living organism (not a retail product/botanical specimen), set "living_being": true.
@@ -32,6 +36,7 @@ async function processProductImage(base64Image) {
   {
     "living_being": boolean,
     "product_name": "Full product name including brand",
+    "brand": "Brand name if visible",
     "ingredients": "Comma separated string of ALL ingredients",
     "nutrition": {
       "calories": number | null,
@@ -41,6 +46,7 @@ async function processProductImage(base64Image) {
       "protein": number | null,
       "carbohydrates": number | null
     },
+    "marketing_claims": ["list of claims visible on package"],
     "category": "Food | Beverage | Supplement | Botanical | Non-Food",
     "allergens": ["list", "of", "allergens"],
     "health_flags": "Immediate clinical red flags"
@@ -48,40 +54,63 @@ async function processProductImage(base64Image) {
   
   Note: If any nutrition value is not visible or identifiable, set to null. Never guess.`;
 
-  console.log('[Vision Service] Initiating Consolidated Clinical Scan (90B Vision)...');
+  console.log('[Vision Service] Initiating Clinical Scan (90B Vision)...');
   
-  // RUN VISION AGENT
-  const visionPromise = runNvidiaAgent(
-    "Deconstruct this clinical specimen into structured data with a living-being check.", 
-    unifiedPrompt, 
-    {
-      modelType: 'vision',
-      image: base64Image,
-      ensureJSON: true,
-      maxTokens: 3500
+  try {
+    // Build the image reference for the NVIDIA API
+    // The NVIDIA vision model accepts both URLs and base64 data URIs
+    const imageRef = isUrl ? imageInput : imageInput;
+
+    const result = await runNvidiaAgent(
+      "Deconstruct this clinical specimen into structured data with a living-being check.", 
+      unifiedPrompt, 
+      {
+        modelType: 'vision',
+        image: imageRef,
+        ensureJSON: true,
+        maxTokens: 3000,
+        retries: 2  // Reduced retries for speed — 2 retries max instead of 3
+      }
+    );
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[Vision Service] Vision complete in ${elapsed}ms`);
+
+    // If we detect a living being, flag it immediately for the orchestrator to abort
+    if (result?.living_being) {
+      console.warn('[Vision Service] LBS_ALERT: Living being detected. Aborting pipeline.');
+      return {
+        living_being: true,
+        raw: "LIVING_BEING_DETECTED",
+        structured: { product_name: "N/A - Non-Product Specimen", ingredients: "N/A" },
+        image_url: isUrl ? imageInput : null
+      };
     }
-  );
 
-  // Await both upload and vision analysis
-  const [result, cloudinaryRes] = await Promise.all([visionPromise, uploadPromise]);
-
-  // If we detect a living being, we flag it immediately for the orchestrator to abort
-  if (result?.living_being) {
-    console.warn('[Vision Service] LBS_ALERT: Living being detected in scan. Aborting pipeline.');
+    return { 
+      living_being: false,
+      raw: result?.ingredients || "Extraction incomplete",
+      structured: result || {},
+      image_url: isUrl ? imageInput : null
+    };
+  } catch (err) {
+    console.error(`[Vision Service] CRITICAL FAILURE after ${Date.now() - startTime}ms:`, err.message);
+    // Return a structured error instead of throwing — prevents pipeline stall
     return {
-      living_being: true,
-      raw: "LIVING_BEING_DETECTED",
-      structured: { product_name: "N/A - Non-Product Specimen", ingredients: "N/A" },
-      image_url: cloudinaryRes?.secure_url || null
+      living_being: false,
+      raw: "Vision extraction failed",
+      structured: {
+        product_name: "Unknown Product",
+        brand: null,
+        ingredients: "",
+        nutrition: null,
+        marketing_claims: [],
+        category: "Unknown"
+      },
+      image_url: isUrl ? imageInput : null,
+      error: err.message
     };
   }
-
-  return { 
-    living_being: false,
-    raw: result?.ingredients || "Extraction incomplete",
-    structured: result || {},
-    image_url: cloudinaryRes?.secure_url || null 
-  };
 }
 
 module.exports = { processProductImage };
