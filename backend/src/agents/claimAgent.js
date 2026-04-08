@@ -9,42 +9,31 @@ const { runNvidiaAgent } = require('../lib/nvidia');
 async function analyzeClaims(productName, ingredients, claimsList = [], options = {}) {
   const finalClaims = (claimsList && claimsList.length > 0) ? claimsList : [`Implicit product positioning for ${productName}`];
 
-  const systemPrompt = `[MODE: CLAIM_AUDITOR_V5.1]
-    Audit marketing claims for Product: ${productName}
-    Actual Ingredients: ${ingredients}
+  const systemPrompt = `[MODE: CLAIM_AUDITOR_V5.2]
+    Audit: ${productName}
+    Data: ${ingredients}
     
-    TASK: Contrast label "Perception" with clinical "Reality".
+    TASK: Truth vs Label. Research the actual ingredients and verify each product claim.
     
-    STRICT PROHIBITIONS:
-    - NEVER use the phrase "AI detected ingredients".
-    - NEVER use the phrase "contradict global health standards".
-    - NEVER use generic opening statements.
-    
-    1. Framing: 
-       - "Perception" is the brand message/positioning.
-       - "Reality" is the biological/clinical impact.
-    2. Reality Field: Describe the clinical truth in EXACTLY ONE SHORT LINE (max 15 words). Focus on specific ingredients (e.g., "Maltodextrin spikes blood sugar level rapidly," instead of "AI detected bad things").
-    3. Explanation: One clear technical reason (e.g., "High fructose corn syrup linked to non-alcoholic fatty liver disease").
-    4. Research Context: 15-20 word scientific reasoning based on physiological impact.
- 
-    Return ONLY valid JSON between <<<JSON_START>>> and <<<JSON_END>>>.
-
-    ## SCHEMA:
-    [
+    SCHEMA: [
       {
-        "claim": "string",
-        "verdict": "True | Misleading | False",
-        "verdictLabel": "CLAIM VERIFIED | MISLEADING CLAIM | FALSE CLAIM",
-        "reality": "string — SPECIFIC CLINICAL TRUTH (15 words max)",
-        "explanation": "string — technical reason",
-        "research_context": "string — 15-20 word science background"
+        "claim": "Exact marketing claim text from the product",
+        "verdict": "True|False",
+        "verdictLabel": "VERIFIED|MISLEADING|FALSE",
+        "reality": "Specific clinical truth about this claim in 12 words max",
+        "research_context": "Scientific reason why claim is accurate or misleading, 15 words max"
       }
-    ]`;
+    ]
+    
+    Rules:
+    - verdict MUST be "True" only if scientifically backed. Otherwise "False".
+    - Be specific to ${productName}. No generic boilerplate.
+    - Max 3 claims. Use agility (8B).`;
 
   const result = await runNvidiaAgent(
-    `Verify claims for: ${productName}`,
+    `Verify: ${productName} | Claims: ${finalClaims.join(', ')}`,
     systemPrompt,
-    { modelType: 'agility', ensureJSON: true, ...options }
+    { modelType: 'agility', maxTokens: 400, ...options }
   );
 
   return result || [];

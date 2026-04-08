@@ -7,13 +7,11 @@ const crypto = require('crypto');
  * CORE LOGIC: Perform analysis, handle persistence (DB + Redis), and handle caching.
  * Extracted to support both legacy and new Cloudinary unified paths.
  */
-async function performScanAnalysis({ type, content, userId, imageUrl, scanId = null }) {
+async function performScanAnalysis({ type, content, userId, imageUrl: imageUrlPromise, scanId = null }) {
   const isUUID = (str) => str && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str);
 
-  // 1. Generate Cache Key (Fingerprint of the content)
-  // For images, the content is the identifier. For Cloudinary, we should use the URL.
-  const fingerprint = (type === 'image' && imageUrl) ? imageUrl : content;
-  const contentHash = crypto.createHash('md5').update(fingerprint).digest('hex');
+  // 1. Generate Cache Key early (using content hash)
+  const contentHash = crypto.createHash('md5').update(content).digest('hex');
   const cacheKey = `scan:${userId}:${contentHash}`;
 
   // 2. Check Redis Cache First
@@ -28,25 +26,37 @@ async function performScanAnalysis({ type, content, userId, imageUrl, scanId = n
     };
   }
 
-  // 3. Resolve user ID
-  let finalUserId = isUUID(userId) ? userId : null;
-  console.log(`[Clinical Persistence] Resolving ID: Input=${userId}, Final=${finalUserId}`);
+  // 3. Kick off AI pipeline immediately using original content (Base64 for images)
+  // We pass the pending promises for imageUrl and persona for late-binding within the pipeline.
+  const finalUserId = isUUID(userId) ? userId : null;
+  const personaPromise = finalUserId
+    ? query('SELECT * FROM personas WHERE user_id = $1', [finalUserId]).then(res => res.rows[0] || {})
+    : Promise.resolve({});
 
-  // 4. Fetch user's persona
-  let persona = {};
-  if (finalUserId) {
-    const personaRes = await query('SELECT * FROM personas WHERE user_id = $1', [finalUserId]);
-    persona = personaRes.rows[0] || {};
-  }
-
-  // 5. Run the AI pipeline
-  // CRITICAL: Always pass the original content (base64 for images, text for text).
-  // imageUrl is ONLY for DB persistence, never for AI processing.
-  const report = await runAnalysisPipeline(
-    { type, content, imageUrl },
-    persona,
+  const pipelineResultPromise = runAnalysisPipeline(
+    { type, content, imageUrl: imageUrlPromise },
+    personaPromise,
     scanId
   );
+
+  // 4. Resolve Cloudinary URL in parallel (with 15s backstop)
+  const resolvedImagePromise = (imageUrlPromise instanceof Promise)
+    ? Promise.race([
+      imageUrlPromise,
+      new Promise(resolve => setTimeout(() => resolve(null), 15000))
+    ])
+    : Promise.resolve(imageUrlPromise);
+
+  // 5. Await AI result and resolved components together
+  const [report, resolvedImageUrl] = await Promise.all([
+    pipelineResultPromise,
+    resolvedImagePromise
+  ]);
+
+  // Inject resolved image URL back into the report for consistent frontend consumption
+  if (resolvedImageUrl) {
+    report.imageUrl = resolvedImageUrl;
+  }
 
   const verdictLabel = (report.overallVerdict || 'limit').toLowerCase();
   const healthScore = report.healthImpact?.personalizedRiskScore || 50;
@@ -68,7 +78,7 @@ async function performScanAnalysis({ type, content, userId, imageUrl, scanId = n
         verdictLabel,
         productName.slice(0, 200),
         healthScore,
-        imageUrl || (type === 'image' ? content : null)
+        resolvedImageUrl || (type === 'image' && content ? `data:image/jpeg;base64,${content}` : null)
       ]
     );
     dbScanId = insertResult.rows[0].id;
@@ -85,13 +95,15 @@ async function performScanAnalysis({ type, content, userId, imageUrl, scanId = n
   const finalScanId = dbScanId || scanId;
 
   // 7. Persistence (Redis Hot-Store)
-  const resultToCache = { 
+  const resultToCache = {
     id: finalScanId,
     user_id: finalUserId,
-    analysis_result: report, 
-    overall_verdict: verdictLabel, 
+    input_method: type || 'text',
+    analysis_result: report,
+    overall_verdict: verdictLabel,
     product_name: productName,
     health_score: healthScore,
+    input_image: resolvedImageUrl || (type === 'image' && content ? `data:image/jpeg;base64,${content}` : null),
     created_at: new Date().toISOString(),
     is_temporary: !savedToDB
   };
@@ -108,7 +120,7 @@ async function performScanAnalysis({ type, content, userId, imageUrl, scanId = n
     scanId: finalScanId,
     analysis: report,
     productName,
-    imageUrl: imageUrl || null
+    imageUrl: resolvedImageUrl || null
   };
 }
 
@@ -120,7 +132,7 @@ async function performScanAnalysis({ type, content, userId, imageUrl, scanId = n
  */
 async function createScan(req, res) {
   const { type, content, userId, imageUrl } = req.body;
-  
+
   if (!content) {
     return res.status(400).json({ error: 'Product content is required for analysis.' });
   }
@@ -137,7 +149,7 @@ async function createScan(req, res) {
   (async () => {
     try {
       setStatus(scanId, { step: 2, label: 'Parsing botanical metadata...' });
-      
+
       const result = await performScanAnalysis({ type, content, userId, imageUrl, scanId });
 
       setStatus(scanId, { step: 9, label: 'Analysis complete.', complete: true, result });
@@ -180,23 +192,23 @@ async function getScanById(req, res) {
 
     const { getStatus } = require('../lib/scanStatusStore');
     const status = getStatus(id);
-    
+
     if (status && status.complete) {
       return res.json({ success: true, data: status.result });
     }
 
     const { query } = require('../db/pool');
     const result = await query('SELECT * FROM scans WHERE id = $1', [id]);
-    
+
     if (result.rows.length === 0) {
       // If we have a processing status but not complete, return 202 instead of 404
       if (status && !status.complete) {
-        return res.status(202).json({ 
-          status: 'processing', 
-          message: 'Specimen analysis is currently in progress.' 
+        return res.status(202).json({
+          status: 'processing',
+          message: 'Specimen analysis is currently in progress.'
         });
       }
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'Scan Record Expired',
         message: 'The clinical analysis for this specimen is no longer available.'
       });
@@ -210,9 +222,17 @@ async function getScanById(req, res) {
 
     try {
       await setCache(`scan:id:${id}`, reportData, 86400);
-    } catch (e) {}
+    } catch (e) { }
 
-    return res.json({ success: true, data: reportData });
+    return res.json({
+      success: true,
+      data: {
+        ...reportData,
+        analysis_result: typeof reportData.analysis_result === 'string'
+          ? JSON.parse(reportData.analysis_result)
+          : reportData.analysis_result
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: 'Clinical Retrieval Failure.' });
   }
@@ -256,4 +276,3 @@ async function getScanResult(req, res) {
 }
 
 module.exports = { createScan, getScanHistory, getScanById, performScanAnalysis, getScanStatus, getScanResult };
-

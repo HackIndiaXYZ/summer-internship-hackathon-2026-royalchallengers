@@ -28,7 +28,23 @@ const AnalysisReport = () => {
     const fetchReport = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/scans/id/${id}`);
-        setReport(res.data.analysis_result || res.data);
+        // Support direct objects, DB search records (analysis_result), and runtime status tracking (analysis)
+        const data = res.data.data || res.data;
+        const mainReport = data.analysis_result || data.analysis || data;
+
+        // Inject image URL from DB row into the report object
+        if (data.input_image) {
+          mainReport.input_image = data.input_image;
+        } else if (data.imageUrl) {
+          mainReport.input_image = data.imageUrl;
+        }
+
+        // Inject product_name from DB row if analysis_result doesn't have it
+        if (!mainReport.productName && data.product_name) {
+          mainReport.productName = data.product_name;
+        }
+
+        setReport(mainReport);
         setLoading(false);
       } catch (err) {
         console.error('Report retrieval error:', err);
@@ -42,9 +58,9 @@ const AnalysisReport = () => {
   if (!report) return <EmptyState />;
 
   const {
-    productName,
+    productName: rawProductName,
     brand,
-    imageUrl,
+    imageUrl: reportImageUrl,
     confidenceScore,
     overallVerdict,
     ingredients = [],
@@ -54,6 +70,12 @@ const AnalysisReport = () => {
     alternativeResources = { items: [] },
     nutrition = {}
   } = report;
+
+  // Robust product name — check all possible locations in the response object
+  const productName = rawProductName || report.product_name || brand || 'Product Analysis';
+
+  // Final Image URL resolution — check nested analysis OR top-level DB field
+  const imageUrl = reportImageUrl || report.input_image || null;
 
   const getVerdictColor = (v) => {
     if (v === 'safe') return 'bg-emerald-500';
@@ -82,7 +104,7 @@ const AnalysisReport = () => {
               <span className="material-symbols-outlined text-slate-200 text-3xl sm:text-4xl">inventory_2</span>
             )}
           </div>
-          
+
           <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
             <div className="space-y-1">
               <div className="flex justify-between items-start gap-2">
@@ -162,8 +184,8 @@ const AnalysisReport = () => {
             )}
           </div>
         </div>
-        
-        {/* SECTION 2.5: Nutritional Snapshot */}
+
+        {/* SECTION 2.5: Nutritional Snapshot (Hardened V7.0) */}
         <div className="space-y-4">
           <h2 className="text-[22px] font-bold text-[#111827]">Nutritional Snapshot</h2>
           <div className="grid grid-cols-3 gap-[8px] sm:gap-[12px]">
@@ -174,15 +196,20 @@ const AnalysisReport = () => {
               { emoji: '🧂', label: 'Salt', value: nutrition?.salt, unit: 'g' },
               { emoji: '🥩', label: 'Protein', value: nutrition?.protein, unit: 'g' },
               { emoji: '🍞', label: 'Carbs', value: nutrition?.carbohydrates, unit: 'g' },
-            ].map((item, idx) => (
-              <div key={idx} className="bg-[#F3F4F6] rounded-[16px] p-2.5 sm:p-5 flex flex-col items-start justify-center">
-                <span className="text-[24px] sm:text-[36px] mb-1 sm:mb-2">{item.emoji}</span>
-                <p className="text-[14px] sm:text-[28px] font-bold text-[#111827] leading-none mb-1">
-                  {item.value !== null && item.value !== undefined && item.value !== '—' ? `${item.value}${item.value === 'N/A' ? '' : item.unit}` : '—'}
-                </p>
-                <p className="text-[10px] sm:text-[15px] text-[#9CA3AF] font-medium leading-tight">{item.label}</p>
-              </div>
-            ))}
+            ].map((item, idx) => {
+              const displayValue = item.value === 0 ? '0' : (item.value || 'N/A');
+              const isNA = displayValue === 'N/A' || displayValue === '—' || displayValue === 'null';
+
+              return (
+                <div key={idx} className="bg-[#F3F4F6] rounded-[16px] p-2.5 sm:p-5 flex flex-col items-center justify-center text-center shadow-sm">
+                  <span className="text-[24px] sm:text-[36px] mb-1 sm:mb-2">{item.emoji}</span>
+                  <p className={`text-[14px] sm:text-[24px] font-bold text-[#111827] leading-none mb-1 ${isNA ? 'text-slate-400 opacity-50' : ''}`}>
+                    {isNA ? 'N/A' : `${displayValue}${item.unit}`}
+                  </p>
+                  <p className="text-[10px] sm:text-[13px] text-[#9CA3AF] font-medium leading-tight">{item.label}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -193,7 +220,7 @@ const AnalysisReport = () => {
           <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 shadow-sm space-y-4">
             <h3 className="text-[10px] sm:text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em]">Perception</h3>
             <div className="space-y-3">
-              <p className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">
+              <p className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
                 {marketingClaims[0]?.claim ? `"${marketingClaims[0].claim}"` : 'Analyzing Brand Positioning...'}
               </p>
               <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-tighter ${marketingClaims[0]?.verdict === 'True' ? 'bg-emerald-500' : 'bg-red-500'}`}>
@@ -202,11 +229,6 @@ const AnalysisReport = () => {
                 </span>
                 {marketingClaims[0]?.verdictLabel || 'SCIENTIFIC AUDIT'}
               </div>
-              {marketingClaims[0]?.verdict !== 'True' && (
-                <p className="text-sm text-slate-400 font-medium">
-                  Label-based claims being examined.
-                </p>
-              )}
             </div>
           </div>
 
@@ -214,14 +236,16 @@ const AnalysisReport = () => {
           <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 shadow-sm space-y-4">
             <h3 className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Reality</h3>
             <div className="space-y-3">
-              <p className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-                {marketingClaims[0]?.reality || 'Clinical analysis shows significant deviation.'}
+              <p className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+                {marketingClaims[0]?.reality || 'Clinical analysis found deviations from stated claims.'}
               </p>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-[13px] text-slate-600 font-medium leading-relaxed italic">
-                  {marketingClaims[0]?.explanation || 'Clinical profile indicates standard baseline risk.'}
-                </p>
-              </div>
+              {marketingClaims[0]?.explanation && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-[13px] text-slate-600 font-medium leading-relaxed italic">
+                    {marketingClaims[0].explanation}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -230,10 +254,10 @@ const AnalysisReport = () => {
             <h3 className="text-sm font-bold text-slate-900 tracking-tight">What If You Consume This Daily?</h3>
             <div className="space-y-1">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                {healthImpact.impactLabel || 'Sodium Intake Increase:'}
+                {healthImpact.impactLabel || 'Analyzing daily impact...'}
               </p>
               <p className="text-[32px] font-black text-slate-900 leading-tight">
-                {healthImpact.impactValue || '120-150%'}
+                {healthImpact.impactValue || '—'}
               </p>
             </div>
             <ul className="space-y-2 border-t border-slate-50 pt-4">
@@ -246,14 +270,14 @@ const AnalysisReport = () => {
             </ul>
           </div>
 
-          {/* Card 4: Checklist & Final Verdict */}
+          {/* Card 4: Data Sources & Final Verdict */}
           <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-6 shadow-sm flex flex-col justify-between">
             <div className="space-y-3">
               {[
-                { label: 'Manual input data', type: 'warning' },
-                { label: 'Curated sample data', type: 'check' },
-                { label: 'Evidence layer', type: 'check' },
-                { label: 'FSSAI', type: 'check' }
+                { label: report.input_method === 'image' ? 'Image scan data' : 'Manual input data', type: report.input_method === 'image' ? 'check' : 'warning' },
+                { label: ingredients.length > 0 ? `${ingredients.length} ingredients analyzed` : 'Ingredient data', type: ingredients.length > 0 ? 'check' : 'warning' },
+                { label: 'AI evidence layer', type: 'check' },
+                { label: 'WHO/FSSAI cross-referenced', type: 'check' }
               ].map((item, idx) => (
                 <div key={idx} className="flex items-center gap-3 text-sm font-medium text-slate-500">
                   <span className={`material-symbols-outlined text-[18px] ${item.type === 'check' ? 'text-emerald-500' : 'text-amber-500'}`}>

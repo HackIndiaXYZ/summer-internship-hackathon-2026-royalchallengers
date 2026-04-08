@@ -4,7 +4,7 @@ const { runNvidiaAgent } = require('../lib/nvidia');
  * Agent 1 — Persona Context Agent (V4.0)
  * Logic: Identify which ingredient types are HIGH RISK for this specific user.
  */
-async function analyzePersona(userProfile) {
+async function analyzePersona(userProfile, options = {}) {
   const profileString = JSON.stringify(userProfile || {});
   
   const systemPrompt = `[MODE: CLINICAL_IDENTITY_V4.0]
@@ -16,19 +16,19 @@ async function analyzePersona(userProfile) {
 
     ## SCHEMA:
     {
-      "personaType": "string",
-      "highRiskIngredients": ["string"],
-      "relevantClaimCategories": ["string"],
-      "personalizationLens": "string",
+      "personaType": "string (e.g. Diabetic, Hypertensive, Athlete, or General)",
+      "highRiskIngredients": ["string - specific to their condition"],
+      "relevantClaimCategories": ["string - e.g. Sugar-Free, Low-Sodium, or Protein-Rich"],
+      "personalizationLens": "string - one sentence explaining the focus for this user",
       "isDefault": boolean
     }
     
-    IMPORTANT: Return ONLY the JSON between <<<JSON_START>>> and <<<JSON_END>>> markers.`;
+    IMPORTANT: Be extremely specific to the health conditions provided. Return ONLY the JSON between <<<JSON_START>>> and <<<JSON_END>>> markers. No generic placeholders.`;
 
   const result = await runNvidiaAgent(
     "Analyze user health persona and identify clinical risk factors for Agent 1.",
     systemPrompt,
-    { modelType: 'agility', ensureJSON: true }
+    { modelType: 'agility', ensureJSON: true, ...options }
   );
 
   return result || {

@@ -9,18 +9,24 @@ async function processProductImage(imageInput) {
   const isUrl = typeof imageInput === 'string' && imageInput.startsWith('http');
   const imageRef = isUrl ? imageInput : imageInput;
 
-  const unifiedPrompt = `[MODE: CLINICAL_VISION_V5.2 — SPEED_OPTIMIZED]
+  const unifiedPrompt = `[MODE: CLINICAL_VISION_V6.0 — QUALITY_HARDENED]
   Objective: Deconstruct this specimen with extreme precision for high-speed clinical analysis.
   
-  1. CATEGORY GUARD: 
+  1. QUALITY_CHECK:
+     - If the image is blurry, low-light, or text is unreadable, set "extraction_quality": "low" and "needs_research": true.
+     - If text is crystal clear, set "extraction_quality": "high" and "needs_research": false.
+
+  2. CATEGORY GUARD: 
      - If this is NOT a retail food, beverage, or supplement product (human face, electronic, clothing, pet, etc.), set "category": "Non-Food" and "living_being": true.
      - If it IS consumable, set "category": "Food" and "living_being": false.
   
-  2. OCR_CORE: Extract Brand, Name, Ingredients, and Nutrition (Energy kcal, Fat, Sugars, Salt, Protein, Carbs). 
+  3. OCR_CORE: Extract Brand, Name, Ingredients, and Nutrition (Energy kcal, Fat, Sugars, Salt, Protein, Carbs). 
      - PER 100g ONLY. Convert kJ to kcal (/4.184) and Sodium to Salt (mg/1000 * 2.5) if needed.
   
-  3. MAPPING:
+  4. MAPPING:
   {
+    "extraction_quality": "high|low",
+    "needs_research": boolean,
     "living_being": boolean,
     "product_name": "Full name + brand",
     "brand": "Brand name",
@@ -30,20 +36,20 @@ async function processProductImage(imageInput) {
     "category": "Food|Beverage|Supplement|Non-Food"
   }
   
-  Note: Prioritize speed. If data is obscured, use standard values based on product category.`;
+  Note: If Data is obscured, DO NOT FAIL. Provide your BEST GUESS based on the visual category (e.g., if it's a cookie, guess logical sugar/fat levels) and set extraction_quality: "low".`;
 
   console.log('[Vision Service] Initiating 15s High-Speed Discovery...');
-  
+
   try {
     const result = await runNvidiaAgent(
-      "Classify and extract clinical specimen data.", 
-      unifiedPrompt, 
+      "Classify and extract clinical specimen data.",
+      unifiedPrompt,
       {
         modelType: 'vision',
         image: imageRef,
         ensureJSON: true,
-        maxTokens: 1200, // Reduced from 3000 to save time
-        retries: 1      // Reduced from 2 to save time — if it fails once, we fallback to research
+        maxTokens: 800, // Reduced further for speed
+        retries: 0      // 0 retries — if it fails, we handle it in catch
       }
     );
 
@@ -59,7 +65,7 @@ async function processProductImage(imageInput) {
       };
     }
 
-    return { 
+    return {
       living_being: false,
       category: result?.category || 'Food',
       raw: result?.ingredients || "",

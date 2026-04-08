@@ -10,9 +10,10 @@ async function findAlternatives(productData, ingredientsAnalysis, persona, optio
     return [];
   }
 
+  const ingredientsList = Array.isArray(ingredientsAnalysis) ? ingredientsAnalysis : [];
   const systemPrompt = `[MODE: HEALTH_SWAP_V4.0]
     Original Product: ${productData.productName} (${productData.brand})
-    Ingredient Concerns: ${JSON.stringify(ingredientsAnalysis.filter(i => i.status !== 'Acceptable'))}
+    Ingredient Concerns: ${JSON.stringify(ingredientsList.filter(i => i.status !== 'Acceptable'))}
     User Persona: ${JSON.stringify(persona)}
     
     1. Produce EXACTLY 3 alternatives from the Indian market (Kirana stores, online like BigBasket/Blinkit, or Homemade).

@@ -8,38 +8,26 @@ async function analyzeProduct(inputData, options = {}) {
   // Defensive Guard
   if (!inputData) inputData = "Empty input.";
 
-  const systemPrompt = `[MODE: PRODUCT_IDENTITY_V4.0]
-    Extract product details from input:
-    1. productName: exact name from label.
-    2. brand: brand name or null.
-    3. ingredients: complete list exactly as printed.
-    4. marketingClaims: ALL marketing claims/selling points printed on pack (e.g. '100% Organic').
-    5. nutrition: Extract Energy (kcal), Total Fat (g), Total Sugars (g), Salt (g), Protein (g), Total Carbohydrates (g) per 100g.
+  const systemPrompt = `[MODE: PRODUCT_EXTRACT_V4.1]
+    Extract:
+    1. productName
+    2. brand
+    3. ingredients (literal)
+    4. marketingClaims (list)
+    5. nutrition (per 100g: calories, fat, sugar, salt, protein, carbohydrates)
     
-    CRITICAL: Always Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
-
-    ## SCHEMA:
-    {
+    SCHEMA: {
       "productName": "string",
-      "brand": "string | null",
+      "brand": "string",
       "ingredients": "string",
-      "marketingClaims": ["string"],
-      "nutrition": { 
-        "calories": number | null, 
-        "fat": number | null, 
-        "sugar": number | null, 
-        "salt": number | null, 
-        "protein": number | null, 
-        "carbohydrates": number | null 
-      },
-      "category": "string",
-      "isValid": boolean
+      "marketingClaims": [],
+      "nutrition": { "calories":0, "fat":0, "sugar":0, "salt":0, "protein":0, "carbohydrates":0 }
     }`;
 
   const result = await runNvidiaAgent(
-    "Extract exact product identity and marketing claims for Agent 2.",
-    `INPUT_DATA: ${inputData}\n\n${systemPrompt}`,
-    { modelType: 'agility', ensureJSON: true, ...options }
+    "Extract product data.",
+    `INPUT: ${inputData}\n\n${systemPrompt}`,
+    { modelType: 'agility', maxTokens: 500, ...options }
   );
 
   return result || {
@@ -47,13 +35,13 @@ async function analyzeProduct(inputData, options = {}) {
     "brand": null,
     "ingredients": "",
     "marketingClaims": [],
-    "nutrition": { 
-      "calories": null, 
-      "fat": null, 
-      "sugar": null, 
-      "salt": null, 
-      "protein": null, 
-      "carbohydrates": null 
+    "nutrition": {
+      "calories": null,
+      "fat": null,
+      "sugar": null,
+      "salt": null,
+      "protein": null,
+      "carbohydrates": null
     },
     "category": "General",
     "isValid": false

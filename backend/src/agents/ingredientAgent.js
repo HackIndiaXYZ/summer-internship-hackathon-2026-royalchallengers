@@ -9,43 +9,37 @@ const { runNvidiaAgent } = require('../lib/nvidia');
 async function analyzeIngredients(ingredients, productData, persona, options = {}) {
   if (!ingredients || !productData) return [];
 
-  const systemPrompt = `[MODE: SCIENTIFIC_AUDITOR_V4.5]
-    Audit ingredients for Product: ${productData.productName}
-    User Persona: ${JSON.stringify(persona)}
-    
-    CRITICAL FORMATTING RULE (NO EXCEPTIONS):
-    The "standardGuideline" field MUST start with the authority (WHO or FSSAI) followed by a 5 to 6 word research-backed sentence inside parentheses explaining the clinical reason.
-    
-    VALID EXAMPLES:
-    - "WHO (Acceptable: Within daily intake safety zone)"
-    - "FSSAI (Caution: Potential long-term gut inflammation)"
-    - "WHO (Harmful: Linked to increased cardiac risk)"
-    
-    INVALID EXAMPLES (DO NOT USE):
-    - "WHO" (Too short)
-    - "FSSAI (Caution: This is bad)" (Too short)
-    - "WHO (Acceptable: This ingredient is generally considered safe for human consumption by most global authorities)" (Too long)
-    
-    TASK:
-    1. Extract name exactly as on label.
-    2. Classify: Acceptable | Caution | Harmful.
-    3. Provide the 5-6 word clinical reason in the required format.
-    
-    Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>>.
+  // Safety: normalize ingredients to a readable string
+  const ingredientList = typeof ingredients === 'string'
+    ? ingredients
+    : Array.isArray(ingredients)
+      ? ingredients.join(', ')
+      : JSON.stringify(ingredients);
 
-    ## SCHEMA:
-    [
+  const systemPrompt = `[MODE: SCIENTIFIC_AUDITOR_V4.6]
+    Product: ${productData.productName}
+    Persona Risk Lens: ${persona?.personaType || 'General'}
+
+    TASK: Scientifically classify each ingredient listed below using WHO/FSSAI standards.
+    FORMAT per item: "[Authority]: [Brief 8-word biological/clinical reason]"
+    
+    SCHEMA: [
       {
-        "name": "string",
-        "standardGuideline": "Authority (EXACTLY 5-6 word clinical reason in parentheses)",
-        "status": "Acceptable | Caution | Harmful"
+        "name": "Exact ingredient name from the list",
+        "standardGuideline": "WHO: Reason OR FSSAI: Reason — must be specific to this ingredient",
+        "status": "Acceptable|Caution|Harmful"
       }
-    ]`;
+    ]
+    
+    Rules:
+    - Classify ONLY the ingredients provided. Do NOT invent new ones.
+    - standardGuideline must name a real authority (WHO, FSSAI, EFSA, ICMR).
+    - Max 10 items. No generic text. No boilerplate. No chatter.`;
 
   const result = await runNvidiaAgent(
-    `Classify clinical ingredients for: ${productData.productName}`,
+    `Classify these ingredients for ${productData.productName}: ${ingredientList}`,
     systemPrompt,
-    { modelType: 'agility', ensureJSON: true, ...options }
+    { modelType: 'agility', maxTokens: 600, ...options }
   );
 
   return result || [];

@@ -13,27 +13,36 @@ async function analyzePersonalization(ingredientsAnalysis, persona, options = {}
     };
   }
 
+  const harmfulIngredients = Array.isArray(ingredientsAnalysis)
+    ? ingredientsAnalysis.filter(i => i.status !== 'Acceptable').map(i => i.name)
+    : [];
+
   const systemPrompt = `[MODE: CLINICAL_PERSONALIZATION_V4.0]
     User Persona: ${JSON.stringify(persona)}
-    Ingredient Analysis: ${JSON.stringify(ingredientsAnalysis)}
+    Product Ingredients (analyzed): ${JSON.stringify(ingredientsAnalysis?.slice(0, 8))}
+    Harmful/Caution Ingredients: ${harmfulIngredients.join(', ') || 'None identified'}
     
-    3. Write the impact label (e.g., "Sodium Intake Increase:", "Sugar Overload Risk:").
-    4. Write the impact value EXACTLY as a percentage or multiplier (e.g., "120-150%", "2.5x Limit").
-    5. Write the detailed impact description (e.g. "Continuous consumption could lead to hypertension...").
-    6. Write 2-3 specific warnings relevant to THIS user's conditions as bullet points.
+    TASK: Calculate what happens if the user consumes this SPECIFIC product daily.
     
-    CRITICAL: The "impactValue" must be the main quantitative stat you want to highlight.
+    Steps:
+    1. Identify the PRIMARY health risk specific to this product's ingredient profile.
+    2. Write the impactLabel based on the DOMINANT concern (e.g., "Sugar Overload:" for high-sugar products, "Trans Fat Risk:" for processed snacks). NOT always sodium.
+    3. Write the impactValue as a realistic quantitative stat (e.g., "180% RDA", "3x sugar limit", "2.5x Safe Limit"). Base it on actual ingredient quantities if known.
+    4. Write a detailed impact description specific to this product.
+    5. Write 2-3 specific warnings relevant to THIS user's health conditions.
+    
+    CRITICAL: The impactLabel and impactValue MUST reflect the actual dominant ingredients of this product. Do NOT default to "Sodium Intake Increase: 150%" unless sodium is genuinely the main concern.
     
     CRITICAL: Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
 
     ## SCHEMA:
     {
       "dailyConsumption": {
-        "headline": "string — high level risk",
-        "impactLabel": "string — e.g. Fat Intake Increase:",
-        "impactValue": "string — e.g. 120-150%",
-        "impact": "string — detailed reasoning",
-        "warnings": ["string — precise bullet points"]
+        "headline": "string — high level risk specific to this product",
+        "impactLabel": "string — based on dominant ingredient concern",
+        "impactValue": "string — realistic quantitative stat for this product",
+        "impact": "string — detailed reasoning specific to this product",
+        "warnings": ["string — precise bullet points for this user persona"]
       },
       "rescoredIngredients": [
         {

@@ -14,53 +14,36 @@ async function generateVerdict(fullContext, options = {}) {
     };
   }
 
-  const systemPrompt = `[MODE: VERDICT_ENGINE_V4.0]
-    Analyze the full clinical context for Product: ${fullContext.product.productName}
-    Ingredient Analysis: ${JSON.stringify(fullContext.ingredients)}
-    Claim Verifications: ${JSON.stringify(fullContext.marketingClaims)}
-    Persona Context: ${JSON.stringify(fullContext.persona)}
+  const systemPrompt = `[MODE: VERDICT_ENGINE_V4.1]
+    Audit: ${fullContext.product.productName}
+    Category: ${fullContext.product.brand || 'Food Product'}
+    Ingredients: ${JSON.stringify(fullContext.ingredients?.slice(0, 5))}
+    Persona: ${JSON.stringify(fullContext.persona)}
     
-    1. Make one decisive decision: SAFE | LIMIT | AVOID.
-    2. SAFE: product is appropriate for this user with normal usage.
-    3. LIMIT: product has concerns but is acceptable in controlled amounts.
-    4. AVOID: product has significant risks for this user specifically.
+    TASK: Generate a precise verdict AND personalized consumption advice for THIS specific product.
     
-    CRITICAL RULES:
-    - The verdict MUST align with the ingredient classifications and claim verdicts.
-    - If any ingredient is Harmful AND directly conflicts with the user's health condition (e.g., Sugar for Diabetic): verdict cannot be SAFE.
-    - If all ingredients are Acceptable: verdict cannot be AVOID.
-    
-    5. Set confidenceScore: 85-95 if full label data was available, 60-75 if partial data.
-    
-    6. finalVerdictLabel: "SAFE TO CONSUME" | "LIMIT CONSUMPTION" | "AVOID".
-    7. advice: {
-       "primaryAdvice": "string — one line critical advice (e.g. 'Switch to Jaggery Instead')",
-       "consumptionGuideline": "string — exact serving size and frequency recommendation",
-       "safeIntake": "string — e.g. '1-2 teaspoons daily'",
-       "frequency": "string — e.g. 'Daily' | 'Occasional' | 'Avoid'",
-       "bestTime": "string — e.g. 'Morning or with meals'",
-       "riskLevel": "Low | Moderate | High"
+    SCHEMA: {
+      "overallVerdict": "safe|limit|avoid",
+      "confidenceScore": number (0-100),
+      "finalVerdictLabel": "string",
+      "primaryAdvice": "Specific 15-word advice for this product and persona",
+      "consumptionGuideline": "Specific serving size e.g. '1 teaspoon per day' or '200ml per serving'",
+      "safeIntake": "Exact safe amount e.g. '1-2 tsp/day' or '1 serving weekly'",
+      "frequency": "Daily|Weekly|Occasional|Avoid — choose based on ingredients",
+      "bestTime": "Specific time based on this product's composition e.g. 'Morning on empty stomach' or 'After workout' or 'Before bed'. NOT generic.",
+      "riskLevel": "Low|Moderate|High"
     }
     
-    CRITICAL: Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
-
-    ## SCHEMA:
-    {
-      "overallVerdict": "safe | limit | avoid",
-      "confidenceScore": number (0-100),
-      "finalVerdictLabel": "string — from options above",
-      "primaryAdvice": "string",
-      "consumptionGuideline": "string",
-      "safeIntake": "string",
-      "frequency": "string",
-      "bestTime": "string",
-      "riskLevel": "string"
-    }`;
+    Rules:
+    - primaryAdvice must be unique to ${fullContext.product.productName}.
+    - bestTime must be scientifically timed for these specific ingredients (e.g., "After dinner to avoid sugar spikes" or "Post-workout for protein absorption").
+    - safeIntake must be an exact serving size (e.g., "Max 2 biscuits" or "100ml").
+    - No chatter. No generic defaults like "Moderate" or "With meals" if more specific timing is relevant. Use agility (8B).`;
 
   const result = await runNvidiaAgent(
-    `Synthesize final decisive medical verdict and confidence score.`,
+    `Synthesize verdict for: ${fullContext.product.productName}`,
     systemPrompt,
-    { modelType: 'clinical', ensureJSON: true, ...options }
+    { modelType: 'agility', maxTokens: 400, ...options }
   );
 
   return result || {

@@ -1,7 +1,7 @@
 const { processProductImage } = require('../services/visionService');
 const { validatePipelineOutput } = require('../lib/validator');
 
-// Import 9-Agent Protocol (V7.0 — 15s Hardened)
+// Import 9-Agent Protocol (V8.0 — Production Hardened)
 const { analyzePersona } = require('../agents/personaAgent');
 const { analyzeProduct } = require('../agents/productAgent');
 const { analyzeIngredients } = require('../agents/ingredientAgent');
@@ -14,9 +14,15 @@ const { assembleReport } = require('../agents/assemblyAgent');
 const { researchProductIngredients } = require('../agents/ingredientGuessAgent');
 
 /**
- * MEDO VEDA — CLINICAL PROTOCOL ORCHESTRATOR (V7.0 — 15s Hardened)
+ * MEDO VEDA — CLINICAL PROTOCOL ORCHESTRATOR (V8.0 — Production Hardened)
  * 
- * Target: Complete pipeline in < 15 seconds.
+ * ARCHITECTURE:
+ *   Wave 1: Vision + Persona (parallel)        — ~5-12s
+ *   Wave 2: Ingredients + Claims + Research     — ~5-8s
+ *   Wave 3: Personalization + Evidence + Alts   — ~3-5s
+ *   Wave 4: Verdict + Assembly                  — ~2-3s
+ *   Total expected: 15-28s
+ *   Safety timeout: 60s (backstop only — user already has scanId via polling)
  */
 async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
   const { setStatus } = require('../lib/scanStatusStore');
@@ -26,37 +32,37 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
   };
 
   const pipelineStart = Date.now();
+  const elapsed = () => `${((Date.now() - pipelineStart) / 1000).toFixed(1)}s`;
   console.log('[PIPELINE START]', new Date().toISOString(), '| scanId:', scanId);
   const isImage = inputData.type === 'image';
 
-  // GLOBAL PIPELINE TIMEOUT — Strictly enforced for frontend responsiveness
-  const pipelineTimeout = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('Pipeline timeout: 15s limit exceeded')), 16000)
+  // SAFETY BACKSTOP — 45s. The user is already polling via scanId, so this
+  // is only here to prevent infinite hangs. NOT a user-facing constraint.
+  const pipelineTimeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Pipeline safety timeout: 60s exceeded')), 60000)
   );
 
   try {
     const pipelineWork = async () => {
       // ══════════════════════════════════════════════════════════════
-      // WAVE 1: INITIAL DISCOVERY (Parallel)
+      // WAVE 1: DISCOVERY (Vision + Persona)
       // ══════════════════════════════════════════════════════════════
-      updateStatus(1, 'Initializing clinical discovery...');
+      updateStatus(1, 'Fast-tracking discovery...');
+      const w1Start = Date.now();
 
-      const wave1 = await Promise.all([
-        safeAgentCall(() => analyzePersona(userProfile, { modelType: 'agility' }), 'PersonaAgent', { personaType: 'General' }, 5000),
-        isImage 
-          ? safeAgentCall(() => processProductImage(inputData.content), 'VisionService', { living_being: false, category: 'Food' }, 10000)
-          : safeAgentCall(() => analyzeProduct(inputData.content, { modelType: 'agility' }), 'ProductAgent', { productName: inputData.content }, 5000)
+      const [persona, discoveryResult] = await Promise.all([
+        safeAgentCall(() => analyzePersona(userProfile, { modelType: 'agility' }), 'PersonaAgent', { personaType: 'General' }, 15000),
+        isImage
+          ? safeAgentCall(() => processProductImage(inputData.content), 'VisionService', { living_being: false, category: 'Food', structured: {} }, 25000)
+          : safeAgentCall(() => analyzeProduct(inputData.content, { modelType: 'agility' }), 'ProductAgent', { productName: inputData.content }, 15000)
       ]);
 
-      const persona = wave1[0];
-      const discoveryResult = wave1[1];
+      console.log(`[WAVE 1] ${((Date.now() - w1Start) / 1000).toFixed(1)}s`);
 
-      // NON-FOOD DETECTION GUARD (Early Exit)
       if (discoveryResult.living_being === true || discoveryResult.category === 'Non-Food') {
-        console.warn('[Orchestrator] NON-FOOD DETECTED. Returning N/A report.');
-        return assembleReport({ 
-          product: { productName: discoveryResult.structured?.product_name || "Non-Food Item", imageUrl: inputData.imageUrl }, 
-          status: 'N/A' 
+        return assembleReport({
+          product: { productName: discoveryResult.structured?.product_name || "Non-Food Item", imageUrl: inputData.imageUrl },
+          status: 'N/A'
         });
       }
 
@@ -66,100 +72,90 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         ingredients: discoveryResult.structured?.ingredients || "",
         nutrition: discoveryResult.structured?.nutrition || null,
         marketingClaims: discoveryResult.structured?.marketing_claims || [],
-        imageUrl: inputData.imageUrl || discoveryResult.image_url || null
-      } : discoveryResult;
+        imageUrl: inputData.imageUrl || discoveryResult.image_url || null,
+        needsResearch: discoveryResult.needs_research || (!discoveryResult.structured?.ingredients)
+      } : { ...discoveryResult, needsResearch: false };
 
       // ══════════════════════════════════════════════════════════════
-      // WAVE 2: RESEARCH & ANALYSIS (Trigger Research in Parallel with Agents)
+      // WAVE 2: ANALYSIS & RESEARCH (Parallel)
       // ══════════════════════════════════════════════════════════════
-      const needsResearch = !product.ingredients || 
-                           product.ingredients.length < 15 || 
-                           !product.nutrition || 
-                           Object.keys(product.nutrition).length < 3 ||
-                           (product.nutrition?.calories === 0 && product.productName !== "Water");
+      updateStatus(4, 'Clinical audit in progress...');
+      const w2Start = Date.now();
 
-      updateStatus(4, 'Performing clinical audit...');
+      // Kick off Research early if needed
+      const researchPromise = product.needsResearch
+        ? safeAgentCall(() => researchProductIngredients(product.productName, discoveryResult.category || 'Food'), 'ResearchAgent', null, 15000)
+        : Promise.resolve(null);
 
-      // Start Research if needed, but don't block yet
-      let researchPromise = Promise.resolve(null);
-      if (needsResearch) {
-        console.log('[Orchestrator] Triggering Research Path (Incomplete OCR data)');
-        researchPromise = safeAgentCall(
-          () => researchProductIngredients(product.productName, discoveryResult.category || 'Food'),
-          'ResearchAgent', 
-          null, 
-          7000
-        );
-      }
-
-      // Execute Wave 2 Analysis
       const [ingredientsData, claimsData, researchData] = await Promise.all([
-        safeAgentCall(() => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }), 'IngredientAgent', [], 6000),
-        safeAgentCall(() => analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' }), 'ClaimAgent', [], 6000),
+        safeAgentCall(() => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }), 'IngredientAgent', [], 15000),
+        safeAgentCall(() => analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' }), 'ClaimAgent', [], 10000),
         researchPromise
       ]);
 
-      // If research found better data, re-run Analysis with improved context (only if we have time)
-      let finalIngredients = ingredientsData;
-      let finalClaims = claimsData;
+      console.log(`[WAVE 2] ${((Date.now() - w2Start) / 1000).toFixed(1)}s`);
 
-      if (researchData) {
-        console.log('[Orchestrator] Merging Research Data into Clinical Report');
-        product.ingredients = researchData.guessed_ingredients || product.ingredients;
-        product.nutrition = researchData.nutrition || product.nutrition;
-        
-        // Re-analyze ingredients with new data if OCR was poor
-        if (!ingredientsData || ingredientsData.length < 3) {
-          finalIngredients = await safeAgentCall(() => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }), 'IngredientAgent_Retry', [], 5000);
+      // Merge Research
+      let finalIngredients = Array.isArray(ingredientsData) ? ingredientsData : [];
+      if (researchData && !researchData.error) {
+        if (researchData.guessed_ingredients) product.ingredients = researchData.guessed_ingredients;
+        if (researchData.nutrition) product.nutrition = { ...(product.nutrition || {}), ...researchData.nutrition };
+        // Quick re-check if initial extraction was empty
+        if (finalIngredients.length < 2 && researchData.guessed_ingredients) {
+          finalIngredients = await safeAgentCall(() => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }), 'IngredientAgent_Retry', [], 10000);
         }
       }
 
       // ══════════════════════════════════════════════════════════════
-      // WAVE 3: SYNTHESIS (Parallel)
+      // WAVE 3: SYNTHESIS & VERDICT (Max Parallel)
       // ══════════════════════════════════════════════════════════════
-      updateStatus(7, 'Finalizing clinical synthesis...');
+      updateStatus(7, 'Synthesizing verdict...');
+      const w3Start = Date.now();
 
-      const [personalizedData, evidenceData, alternativesData] = await Promise.all([
-        safeAgentCall(() => analyzePersonalization(finalIngredients, persona, { modelType: 'agility' }), 'PersonalizationAgent', {}, 5000),
-        safeAgentCall(() => fetchEvidence(finalIngredients, !isImage, false, { modelType: 'agility' }), 'EvidenceAgent', {}, 5000),
-        safeAgentCall(() => findAlternatives(product, finalIngredients, persona, { modelType: 'agility' }), 'AlternativesAgent', [], 5000)
+      // Resolve persona if passed as a promise (Late-binding optimization)
+      const resolvedPersona = (persona instanceof Promise) ? await persona : (persona || {});
+
+      const [personaData, evidence, alts, verdict] = await Promise.all([
+        safeAgentCall(() => analyzePersonalization(finalIngredients, resolvedPersona, { modelType: 'agility' }), 'Personalization', {}, 10000),
+        safeAgentCall(() => fetchEvidence(finalIngredients, false, false, { modelType: 'agility' }), 'Evidence', {}, 10000),
+        safeAgentCall(() => findAlternatives(product, finalIngredients, resolvedPersona, { modelType: 'agility' }), 'Alts', [], 10000),
+        safeAgentCall(() => generateVerdict({ product, ingredients: finalIngredients, persona: resolvedPersona }, { modelType: 'agility' }), 'Verdict', { overallVerdict: "caution" }, 10000)
       ]);
 
-      // ══════════════════════════════════════════════════════════════
-      // WAVE 4: VERDICT & ASSEMBLY
-      // ══════════════════════════════════════════════════════════════
-      updateStatus(9, 'Generating clinical verdict...');
-      const verdictData = await safeAgentCall(
-        () => generateVerdict({ product, ingredients: finalIngredients, marketingClaims: finalClaims, persona: personalizedData }, { modelType: 'agility' }),
-        'VerdictAgent', { overallVerdict: "limit" }, 5000
-      );
+      console.log(`[WAVE 3] ${((Date.now() - w3Start) / 1000).toFixed(1)}s`);
 
+      // ══════════════════════════════════════════════════════════════
+      // WAVE 4: ASSEMBLY
+      // ══════════════════════════════════════════════════════════════
       const finalReport = assembleReport({
-        product, ingredients: finalIngredients, marketingClaims: finalClaims,
-        persona: personalizedData, evidence: evidenceData, alternatives: alternativesData, verdict: verdictData
+        product, ingredients: finalIngredients, marketingClaims: claimsData,
+        persona: personaData, evidence, alternatives: alts, verdict
       });
 
-      console.log(`[PIPELINE_TOTAL] Complete in ${((Date.now() - pipelineStart) / 1000).toFixed(2)}s`);
+      console.log(`[PIPELINE_TOTAL] ${elapsed()}`);
       return validatePipelineOutput(finalReport);
     };
 
     return await Promise.race([pipelineWork(), pipelineTimeout]);
 
   } catch (err) {
-    console.error('[Pipeline] Critical Error:', err.message);
-    updateStatus(0, 'Pipeline stalled. Returning fail-safe report.');
-    return assembleReport({ product: { productName: "Analysis Timeout", brand: "External Search Recommended" }, status: 'N/A' });
+    console.error(`[Pipeline] Fatal:`, err.message);
+    updateStatus(0, 'Returning fail-safe report.');
+    return assembleReport({ product: { productName: "Analysis Interrupted", brand: "System Busy" }, status: 'N/A' });
   }
 }
 
-async function safeAgentCall(agentFn, agentName, fallbackData, timeoutMs = 15000) {
+async function safeAgentCall(agentFn, agentName, fallbackData, timeoutMs = 30000) {
+  const start = Date.now();
   try {
-    return await Promise.race([
+    const result = await Promise.race([
       agentFn(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error(`${agentName} timeout`)), timeoutMs))
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`${agentName} timeout after ${timeoutMs}ms`)), timeoutMs))
     ]);
+    console.log(`[${agentName}] OK in ${Date.now() - start}ms`);
+    return result;
   } catch (err) {
-    console.error(`[${agentName}] FAILED:`, err.message);
+    console.error(`[${agentName}] FAILED in ${Date.now() - start}ms:`, err.message);
     return fallbackData;
   }
 }

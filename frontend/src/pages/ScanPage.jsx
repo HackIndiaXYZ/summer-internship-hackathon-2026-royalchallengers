@@ -152,6 +152,7 @@ const ScanPage = () => {
 
   const handleScan = async (type, content) => {
     setIsAnalyzing(true);
+    const analysisToast = toast.loading('Initializing Clinical Pipeline...');
     try {
       const trimmedProduct = productName.trim() || "Clinical Sample";
       const trimmedIngredients = ingredients.trim() || "Molecular scan data";

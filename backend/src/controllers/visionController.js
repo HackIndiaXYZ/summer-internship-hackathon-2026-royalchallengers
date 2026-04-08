@@ -30,44 +30,35 @@ async function analyzeImage(req, res) {
   setStatus(scanId, { step: 1, label: 'Uploading clinical specimen...', complete: false });
   res.status(202).json({ success: true, scanId, status: 'processing' });
 
-  // 2. Background Processing
+  // 2. Background Processing (Zero-Wait Parallelization V6.0)
   (async () => {
-    let imageUrl = null;
+    let base64Image = null;
     try {
-      // Read file as base64 FIRST (before it gets deleted)
-      const base64Image = fs.readFileSync(filePath, { encoding: 'base64' });
-      console.log(`[Vision Controller] Image loaded: ${(base64Image.length / 1024).toFixed(0)}KB base64`);
+      // Step 2.1: Immediate File Read
+      base64Image = fs.readFileSync(filePath, { encoding: 'base64' });
+      console.log(`[Vision Controller] Starting clinical sequence: ${(base64Image.length / 1024).toFixed(0)}KB`);
 
-      // Step 2: Cloudinary Upload (async, non-blocking for pipeline)
-      setStatus(scanId, { step: 2, label: 'Syncing with medical database...' });
-      
-      // Start Cloudinary upload but DON'T wait for it — let it run in background
+      // Step 2.2: Launch Pipeline AND Cloudinary in Parallel
+      // We don't wait for Cloudinary to START the pipeline.
       const cloudinaryPromise = cloudinary.uploader.upload(filePath, {
-        folder: 'medo_veda_scans'
-      }).then(result => {
-        imageUrl = result.secure_url;
-        console.log(`[Vision Controller] Cloudinary upload complete: ${imageUrl}`);
-        return imageUrl;
-      }).catch(err => {
-        console.error('[Vision Controller] Cloudinary upload failed (non-critical):', err.message);
+        folder: 'medo_veda_scans',
+        resource_type: 'image'
+      }).then(res => res.secure_url).catch(err => {
+        console.warn('[Vision Controller] Cloudinary sync failed:', err.message);
         return null;
       });
 
-      // Step 3: Start pipeline immediately with base64 content
-      setStatus(scanId, { step: 3, label: 'Initializing 9-agent clinical sequence...' });
-      
-      // Wait for cloudinary URL (we need it for DB persistence)
-      // But with a tight timeout — don't let it block the pipeline
-      const cloudinaryUrl = await Promise.race([
-        cloudinaryPromise,
-        new Promise(resolve => setTimeout(() => resolve(null), 8000)) // 8s max wait
-      ]);
+      // Pass the cloudinaryPromise (or just let the pipeline run and we'll attach the URL later)
+      // Actually, performScanAnalysis expects imageUrl. We'll wait for Cloudinary 
+      // but ONLY for the DB record, while the AI vision starts immediately with base64.
+
+      setStatus(scanId, { step: 2, label: 'Dual-path clinical processing...' });
 
       const result = await performScanAnalysis({
         type: 'image',
-        content: base64Image,        // BASE64 for vision AI processing
+        content: base64Image,        // Start AI immediately with base64
         userId: userId,
-        imageUrl: cloudinaryUrl,      // Cloudinary URL for DB persistence
+        imageUrl: cloudinaryPromise, // Pass PROMISE to scanController (will be awaited inside)
         scanId: scanId
       });
 
@@ -99,13 +90,13 @@ async function extractImageText(req, res) {
     const filePath = req.file.path;
     const base64Image = fs.readFileSync(filePath, { encoding: 'base64' });
     const { raw: rawText, structured: parsedResult } = await processProductImage(base64Image);
-    
-    fs.unlink(filePath, () => {});
 
-    return res.status(200).json({ 
-      success: true, 
+    fs.unlink(filePath, () => { });
+
+    return res.status(200).json({
+      success: true,
       data: parsedResult,
-      raw: rawText 
+      raw: rawText
     });
   } catch (err) {
     console.error('[Vision Controller] extractImageText error:', err.stack);
