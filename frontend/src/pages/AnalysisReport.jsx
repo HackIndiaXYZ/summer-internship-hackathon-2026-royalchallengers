@@ -237,7 +237,7 @@ const AnalysisReport = () => {
             <h3 className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Reality</h3>
             <div className="space-y-3">
               <p className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
-                {marketingClaims[0]?.reality || 'Clinical analysis found deviations from stated claims.'}
+                {marketingClaims[0]?.reality || 'Analyzing clinical reality...'}
               </p>
               {marketingClaims[0]?.explanation && (
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -300,20 +300,20 @@ const AnalysisReport = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-slate-50">
               <span className="text-slate-500 font-medium italic">Safe Intake</span>
-              <span className="font-bold text-slate-800">{adviceCard.safeIntake || '1-2 teaspoons daily'}</span>
+              <span className="font-bold text-slate-800">{adviceCard.safeIntake || 'Analyzing...'}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-slate-50">
               <span className="text-slate-500 font-medium italic">Frequency</span>
-              <span className="font-bold text-slate-800">{adviceCard.frequency || 'Daily'}</span>
+              <span className="font-bold text-slate-800">{adviceCard.frequency || 'Analyzing...'}</span>
             </div>
             <div className="flex justify-between items-center py-2 text-sm sm:text-base">
               <span className="text-slate-500 font-medium italic">Best Time</span>
-              <span className="font-bold text-slate-800">{adviceCard.bestTime || 'Morning or with meals.'}</span>
+              <span className="font-bold text-slate-800">{adviceCard.bestTime || 'Analyzing...'}</span>
             </div>
 
             <div className="mt-6 p-4 bg-[#EBF5F3] rounded-xl border border-emerald-100/50">
               <p className="text-[13px] font-medium text-emerald-800 leading-relaxed italic">
-                {adviceCard.consumptionGuideline || 'Can be used as a sweetener or in herbal teas.'}
+                {adviceCard.consumptionGuideline || 'Calculating clinical guidelines...'}
               </p>
             </div>
           </div>

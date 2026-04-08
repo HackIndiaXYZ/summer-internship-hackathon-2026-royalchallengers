@@ -20,20 +20,22 @@ async function analyzeIngredients(ingredients, productData, persona, options = {
     Product: ${productData.productName}
     Persona Risk Lens: ${persona?.personaType || 'General'}
 
-    TASK: Scientifically classify each ingredient listed below using WHO/FSSAI standards.
-    FORMAT per item: "[Authority]: [Brief 8-word biological/clinical reason]"
+    TASK: Scientifically classify each ingredient listed below.
+    MANDATORY: Every ingredient must have a "standardGuideline" citing WHO or FSSAI with a specific clinical reason.
+    
+    FORMAT per item: "[Authority]: [Brief 12-word clinical/biological justification for the status]"
     
     SCHEMA: [
       {
         "name": "Exact ingredient name from the list",
-        "standardGuideline": "WHO: Reason OR FSSAI: Reason — must be specific to this ingredient",
+        "standardGuideline": "e.g., 'WHO: Excessive intake linked to cardiovascular risk.' or 'FSSAI: Classed as restricted additive.'",
         "status": "Acceptable|Caution|Harmful"
       }
     ]
     
     Rules:
-    - Classify ONLY the ingredients provided. Do NOT invent new ones.
-    - standardGuideline must name a real authority (WHO, FSSAI, EFSA, ICMR).
+    - Classify ONLY the ingredients provided.
+    - standardGuideline MUST include a citation (WHO, FSSAI, EFSA).
     - Max 10 items. No generic text. No boilerplate. No chatter.`;
 
   const result = await runNvidiaAgent(

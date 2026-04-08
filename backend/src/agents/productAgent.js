@@ -8,12 +8,14 @@ async function analyzeProduct(inputData, options = {}) {
   // Defensive Guard
   if (!inputData) inputData = "Empty input.";
 
-  const systemPrompt = `[MODE: PRODUCT_EXTRACT_V4.1]
-    Extract:
-    1. productName
+  const systemPrompt = `[MODE: PRODUCT_EXTRACT_V4.2]
+    Extract the most clinical and recognizable name for the product.
+    
+    FIELDS:
+    1. productName (e.g., "Maggi 2-Minute Noodles", "Amul Butter")
     2. brand
-    3. ingredients (literal)
-    4. marketingClaims (list)
+    3. ingredients (full literal list)
+    4. marketingClaims (all claims like "No Preservatives")
     5. nutrition (per 100g: calories, fat, sugar, salt, protein, carbohydrates)
     
     SCHEMA: {

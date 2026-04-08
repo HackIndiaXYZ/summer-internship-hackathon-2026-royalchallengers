@@ -35,16 +35,20 @@ async function testPipeline() {
 
     console.log('\n--- TEST RESULTS ---');
     console.log(`Latency: ${(duration / 1000).toFixed(2)}s (Target: <20s)`);
-    console.log(`Product Name: ${result.report.product.name}`);
-    console.log(`Verdict Score: ${result.report.verdict.score}/10.0`);
-    console.log(`Verdict Label: ${result.report.verdict.label}`);
-    console.log(`Confidence: ${result.report.verdict.confidence}%`);
+    console.log(`Product Name: ${result.productName}`);
+    console.log(`Verdict: ${result.overallVerdict}`);
+    console.log(`Confidence: ${result.confidenceScore}%`);
     
     console.log('\n--- NUTRITION EXTRACTED ---');
-    console.log(JSON.stringify(result.report.nutrition_analysis, null, 2));
+    console.log(JSON.stringify(result.nutrition, null, 2));
 
     console.log('\n--- PERSONALIZED ADVICE ---');
-    console.log(JSON.stringify(result.report.personalized_advice, null, 2));
+    console.log(JSON.stringify(result.adviceCard, null, 2));
+
+    console.log('\n--- INGREDIENT ANALYSIS ---');
+    result.ingredients.slice(0, 5).forEach(ing => {
+      console.log(`- ${ing.name}: [${ing.status}] ${ing.standardGuideline}`);
+    });
 
     if (duration < 20000) {
       console.log('\n✅ PERFORMANCE PASSED: Pipeline responded in under 20 seconds.');
@@ -52,7 +56,7 @@ async function testPipeline() {
       console.log('\n⚠️ PERFORMANCE WARNING: Pipeline exceeded 20 seconds.');
     }
 
-    if (result.report.product.name.toLowerCase().includes('maggi')) {
+    if (result.productName.toLowerCase().includes('maggi')) {
       console.log('✅ EXTRACTION PASSED: Product name correctly identified.');
     } else {
       console.log('❌ EXTRACTION FAILED: Product name is generic or missing.');

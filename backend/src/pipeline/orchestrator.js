@@ -66,6 +66,12 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         });
       }
 
+      const isMostlyZero = (nut) => {
+        if (!nut) return true;
+        const values = [nut.calories, nut.fat, nut.sugar, nut.salt, nut.protein, nut.carbohydrates];
+        return values.every(v => v === 0 || v === null || v === undefined);
+      };
+
       let product = isImage ? {
         productName: discoveryResult.structured?.product_name || "Unknown Product",
         brand: discoveryResult.structured?.brand || null,
@@ -73,8 +79,13 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         nutrition: discoveryResult.structured?.nutrition || null,
         marketingClaims: discoveryResult.structured?.marketing_claims || [],
         imageUrl: inputData.imageUrl || discoveryResult.image_url || null,
-        needsResearch: discoveryResult.needs_research || (!discoveryResult.structured?.ingredients)
-      } : { ...discoveryResult, needsResearch: false };
+        needsResearch: discoveryResult.needs_research || 
+                       (!discoveryResult.structured?.ingredients) || 
+                       isMostlyZero(discoveryResult.structured?.nutrition)
+      } : { 
+        ...discoveryResult, 
+        needsResearch: (!discoveryResult.ingredients) || isMostlyZero(discoveryResult.nutrition)
+      };
 
       // ══════════════════════════════════════════════════════════════
       // WAVE 2: ANALYSIS & RESEARCH (Parallel)

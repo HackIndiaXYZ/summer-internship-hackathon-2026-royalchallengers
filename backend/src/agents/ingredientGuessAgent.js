@@ -7,20 +7,31 @@ const { runNvidiaAgent } = require('../lib/nvidia');
  * TARGET: ELIMINATE 0-DATA HALLUCINATIONS.
  */
 async function researchProductIngredients(productName, productCategory) {
-  const systemPrompt = `[MODE: CLINICAL_RESEARCH_PROTO_V6.1]
+  const systemPrompt = `[MODE: CLINICAL_RESEARCH_PROTO_V6.2]
   Product: ${productName} (${productCategory})
   
-  TASK: Recall clinical profile (ingredients + per 100g nutrition).
-  RULES: NO 0 values unless water. High-confidence estimates only.
+  TASK: Recall clinical profile (ingredients + per 100g nutrition) for this EXACT product.
+  MANDATORY: 
+  1. Reference WHO/FSSAI nutritional benchmarks for this category (${productCategory}).
+  2. If the product is "Maggi noodles", use standard data (~380-400 kcal, ~12g fat, ~1.2g sodium per 100g).
+  3. NEVER return 0 for calories, protein, or carbohydrates unless it is a beverage like water.
+  4. Ensure ALL 6 nutritional fields are populated with realistic scientific estimates.
   
   SCHEMA: {
-    "guessed_ingredients": "Comma separated ingredients",
-    "nutrition": { "calories": number, "fat": number, "sugar": number, "salt": number, "protein": number, "carbohydrates": number },
+    "guessed_ingredients": "Precise list of likely ingredients",
+    "nutrition": { 
+      "calories": number, 
+      "fat": number, 
+      "sugar": number, 
+      "salt": number, 
+      "protein": number, 
+      "carbohydrates": number 
+    },
     "is_specific_match": boolean,
     "confidence_score": number
   }
   
-  Constraint: No chatter. Use agility (8B).`;
+  Constraint: Results must be realistic for ${productCategory}. No chatter.`;
 
   const result = await runNvidiaAgent(
     `Deep-recall: ${productName}`,

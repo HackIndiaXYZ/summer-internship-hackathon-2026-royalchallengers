@@ -26,19 +26,19 @@ async function generateVerdict(fullContext, options = {}) {
       "overallVerdict": "safe|limit|avoid",
       "confidenceScore": number (0-100),
       "finalVerdictLabel": "string",
-      "primaryAdvice": "Specific 15-word advice for this product and persona",
-      "consumptionGuideline": "Specific serving size e.g. '1 teaspoon per day' or '200ml per serving'",
-      "safeIntake": "Exact safe amount e.g. '1-2 tsp/day' or '1 serving weekly'",
-      "frequency": "Daily|Weekly|Occasional|Avoid — choose based on ingredients",
-      "bestTime": "Specific time based on this product's composition e.g. 'Morning on empty stomach' or 'After workout' or 'Before bed'. NOT generic.",
+      "primaryAdvice": "Critically unique 15-word advice specific to ${fullContext.product.productName}",
+      "consumptionGuideline": "Clinical serving size justified by composition (e.g., 'Limit to 15g due to saturated fat density')",
+      "safeIntake": "Quantified safe amount (e.g. 'Max 2 units/day')",
+      "frequency": "Scientific frequency based on ingredient severity",
+      "bestTime": "Scientifically justified timing (e.g., 'Morning for metabolic activation' or 'Post-meal to dampen glucose spike'). NO GENERIC DEFAULTS.",
       "riskLevel": "Low|Moderate|High"
     }
     
     Rules:
-    - primaryAdvice must be unique to ${fullContext.product.productName}.
-    - bestTime must be scientifically timed for these specific ingredients (e.g., "After dinner to avoid sugar spikes" or "Post-workout for protein absorption").
-    - safeIntake must be an exact serving size (e.g., "Max 2 biscuits" or "100ml").
-    - No chatter. No generic defaults like "Moderate" or "With meals" if more specific timing is relevant. Use agility (8B).`;
+    - primaryAdvice must NOT be generic. Mention a key ingredient.
+    - bestTime must explain WHY based on ingredients.
+    - safeIntake must be specific (ml, g, units).
+    - No chatter. No JSON markdown wrappers. Use agility (8B).`;
 
   const result = await runNvidiaAgent(
     `Synthesize verdict for: ${fullContext.product.productName}`,

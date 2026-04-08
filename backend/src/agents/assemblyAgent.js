@@ -73,12 +73,12 @@ function assembleReport(data) {
     },
 
     adviceCard: {
-      primaryAdvice: isNA ? "Discard/Do Not Consume" : (verdict?.primaryAdvice || "Moderation is recommended."),
-      consumptionGuideline: isNA ? "Not suitable for dietary intake." : (verdict?.consumptionGuideline || "Consult a clinical expert."),
-      safeIntake: isNA ? "0 servings" : (verdict?.safeIntake || "1-2 servings daily"),
-      frequency: isNA ? "Never" : (verdict?.frequency || "Occasional"),
-      bestTime: isNA ? "N/A" : (verdict?.bestTime || "With meals"),
-      riskLevel: isNA ? "N/A" : (verdict?.riskLevel || "Moderate")
+      primaryAdvice: isNA ? "Discard/Do Not Consume" : (verdict?.primaryAdvice || ""),
+      consumptionGuideline: isNA ? "Not suitable for dietary intake." : (verdict?.consumptionGuideline || ""),
+      safeIntake: isNA ? "0 servings" : (verdict?.safeIntake || ""),
+      frequency: isNA ? "Never" : (verdict?.frequency || ""),
+      bestTime: isNA ? "N/A" : (verdict?.bestTime || ""),
+      riskLevel: isNA ? "N/A" : (verdict?.riskLevel || "")
     },
 
     clinicalEvidence: isNA ? [] : (evidence?.guidelineMatches || []).map(f => ({
