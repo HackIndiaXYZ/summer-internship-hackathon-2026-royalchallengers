@@ -1,7 +1,7 @@
 const { processProductImage } = require('../services/visionService');
 const { validatePipelineOutput } = require('../lib/validator');
 
-// Import 9-Agent Protocol (V8.0 — Production Hardened)
+// Import 9-Agent Protocol (V9.0 — Vision-First Architecture)
 const { analyzePersona } = require('../agents/personaAgent');
 const { analyzeProduct } = require('../agents/productAgent');
 const { analyzeIngredients } = require('../agents/ingredientAgent');
@@ -13,16 +13,33 @@ const { generateVerdict } = require('../agents/verdictAgent');
 const { assembleReport } = require('../agents/assemblyAgent');
 const { researchProductIngredients } = require('../agents/ingredientGuessAgent');
 
+function buildFallbackIngredientRows(ingredientText = '') {
+  const tokens = String(ingredientText || '')
+    .split(/,|;/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+
+  return tokens.map((name) => ({
+    name,
+    standardGuideline: 'WHO/FSSAI: Verify additive and quantity against product label and daily intake limits.',
+    status: 'Caution'
+  }));
+}
+
 /**
- * MEDO VEDA — CLINICAL PROTOCOL ORCHESTRATOR (V8.0 — Production Hardened)
+ * MEDO VEDA — CLINICAL PROTOCOL ORCHESTRATOR (V9.0 — Vision-First)
+ * 
+ * KEY PRINCIPLE: The vision service is the ONLY chance to read the image.
+ * All downstream agents work from the data the vision model extracted.
  * 
  * ARCHITECTURE:
- *   Wave 1: Vision + Persona (parallel)        — ~5-12s
+ *   Wave 1: Vision + Persona (parallel)        — ~5-15s
  *   Wave 2: Ingredients + Claims + Research     — ~5-8s
  *   Wave 3: Personalization + Evidence + Alts   — ~3-5s
  *   Wave 4: Verdict + Assembly                  — ~2-3s
- *   Total expected: 15-28s
- *   Safety timeout: 60s (backstop only — user already has scanId via polling)
+ *   Total expected: 15-30s
+ *   Safety timeout: 60s
  */
 async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
   const { setStatus } = require('../lib/scanStatusStore');
@@ -36,8 +53,7 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
   console.log('[PIPELINE START]', new Date().toISOString(), '| scanId:', scanId);
   const isImage = inputData.type === 'image';
 
-  // SAFETY BACKSTOP — 45s. The user is already polling via scanId, so this
-  // is only here to prevent infinite hangs. NOT a user-facing constraint.
+  // SAFETY BACKSTOP — 60s
   const pipelineTimeout = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('Pipeline safety timeout: 60s exceeded')), 60000)
   );
@@ -47,73 +63,111 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
       // ══════════════════════════════════════════════════════════════
       // WAVE 1: DISCOVERY (Vision + Persona)
       // ══════════════════════════════════════════════════════════════
-      updateStatus(1, 'Fast-tracking discovery...');
+      updateStatus(1, 'Reading product label...');
       const w1Start = Date.now();
 
       const [persona, discoveryResult] = await Promise.all([
         safeAgentCall(() => analyzePersona(userProfile, { modelType: 'agility' }), 'PersonaAgent', { personaType: 'General' }, 15000),
         isImage
-          ? safeAgentCall(() => processProductImage(inputData.content), 'VisionService', { living_being: false, category: 'Food', structured: {} }, 25000)
+          ? safeAgentCall(() => processProductImage(inputData.content), 'VisionService', { living_being: false, category: 'Food', structured: {} }, 30000)
           : safeAgentCall(() => analyzeProduct(inputData.content, { modelType: 'agility' }), 'ProductAgent', { productName: inputData.content }, 15000)
       ]);
 
       console.log(`[WAVE 1] ${((Date.now() - w1Start) / 1000).toFixed(1)}s`);
 
-      if (discoveryResult.living_being === true || discoveryResult.category === 'Non-Food') {
+      // NON-FOOD or UNREADABLE speciment EXIT
+      if (discoveryResult.living_being === true ||
+        discoveryResult.category === 'Non-Food' ||
+        discoveryResult.structured?.product_name === "UNREADABLE_SPECIMEN") {
         return assembleReport({
-          product: { productName: discoveryResult.structured?.product_name || "Non-Food Item", imageUrl: inputData.imageUrl },
+          product: {
+            productName: discoveryResult.structured?.product_name === "UNREADABLE_SPECIMEN"
+              ? "Unreadable Product Label"
+              : (discoveryResult.structured?.product_name || "Non-Food Item"),
+            imageUrl: inputData.imageUrl
+          },
           status: 'N/A'
         });
       }
 
-      const isMostlyZero = (nut) => {
+      const isMostlyNull = (nut) => {
         if (!nut) return true;
         const values = [nut.calories, nut.fat, nut.sugar, nut.salt, nut.protein, nut.carbohydrates];
         return values.every(v => v === 0 || v === null || v === undefined);
       };
 
+      // Build product data from vision extraction
       let product = isImage ? {
-        productName: discoveryResult.structured?.product_name || "Unknown Product",
+        productName: discoveryResult.structured?.product_name || discoveryResult.structured?.productName || "Unknown Product",
         brand: discoveryResult.structured?.brand || null,
         ingredients: discoveryResult.structured?.ingredients || "",
         nutrition: discoveryResult.structured?.nutrition || null,
         marketingClaims: discoveryResult.structured?.marketing_claims || [],
         imageUrl: inputData.imageUrl || discoveryResult.image_url || null,
-        needsResearch: discoveryResult.needs_research || 
-                       (!discoveryResult.structured?.ingredients) || 
-                       isMostlyZero(discoveryResult.structured?.nutrition)
-      } : { 
-        ...discoveryResult, 
-        needsResearch: (!discoveryResult.ingredients) || isMostlyZero(discoveryResult.nutrition)
+        needsResearch: discoveryResult.needs_research ||
+          (!discoveryResult.structured?.ingredients) ||
+          isMostlyNull(discoveryResult.structured?.nutrition)
+      } : {
+        ...discoveryResult,
+        productName: discoveryResult.productName || "Unknown Product",
+        needsResearch: (!discoveryResult.ingredients) || isMostlyNull(discoveryResult.nutrition)
       };
+
+      console.log(`[Pipeline] Product: "${product.productName}", Ingredients: ${product.ingredients?.length || 0} chars, Claims: ${product.marketingClaims?.length || 0}`);
 
       // ══════════════════════════════════════════════════════════════
       // WAVE 2: ANALYSIS & RESEARCH (Parallel)
       // ══════════════════════════════════════════════════════════════
-      updateStatus(4, 'Clinical audit in progress...');
+      updateStatus(4, 'Analyzing ingredients and claims...');
       const w2Start = Date.now();
 
-      // Kick off Research early if needed
+      const normalizedProductName = String(product.productName || '').trim().toLowerCase();
+      const researchQueryName = (!normalizedProductName || normalizedProductName === 'unknown product')
+        ? (product.brand || product.productName)
+        : product.productName;
+
+      // Kick off Research early if vision extraction was poor
       const researchPromise = product.needsResearch
-        ? safeAgentCall(() => researchProductIngredients(product.productName, discoveryResult.category || 'Food'), 'ResearchAgent', null, 15000)
+        ? safeAgentCall(() => researchProductIngredients(researchQueryName, discoveryResult.category || 'Food'), 'ResearchAgent', null, 15000)
         : Promise.resolve(null);
 
       const [ingredientsData, claimsData, researchData] = await Promise.all([
         safeAgentCall(() => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }), 'IngredientAgent', [], 15000),
-        safeAgentCall(() => analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' }), 'ClaimAgent', [], 10000),
+        safeAgentCall(() => analyzeClaims(product.productName, product.ingredients, product.marketingClaims, { modelType: 'agility' }), 'ClaimAgent', [], 12000),
         researchPromise
       ]);
 
-      console.log(`[WAVE 2] ${((Date.now() - w2Start) / 1000).toFixed(1)}s`);
+      console.log(`[WAVE 2] ${((Date.now() - w2Start) / 1000).toFixed(1)}s | Ingredients: ${ingredientsData?.length || 0}, Claims: ${claimsData?.length || 0}`);
 
-      // Merge Research
+      // Merge Research if vision extraction was incomplete
       let finalIngredients = Array.isArray(ingredientsData) ? ingredientsData : [];
       if (researchData && !researchData.error) {
-        if (researchData.guessed_ingredients) product.ingredients = researchData.guessed_ingredients;
-        if (researchData.nutrition) product.nutrition = { ...(product.nutrition || {}), ...researchData.nutrition };
-        // Quick re-check if initial extraction was empty
+        if (researchData.guessed_ingredients && (!product.ingredients || product.ingredients.length < 10)) {
+          product.ingredients = researchData.guessed_ingredients;
+        }
+        if (researchData.nutrition) {
+          const baseNutrition = product.nutrition || {};
+          const mergedNutrition = { ...baseNutrition };
+
+          for (const key of ['calories', 'fat', 'sugar', 'salt', 'protein', 'carbohydrates']) {
+            const current = baseNutrition[key];
+            const fallback = researchData.nutrition[key];
+            const isCurrentMissing = current === null || current === undefined || current === '';
+
+            if (isCurrentMissing && fallback !== null && fallback !== undefined && fallback !== '') {
+              mergedNutrition[key] = fallback;
+            }
+          }
+
+          product.nutrition = mergedNutrition;
+        }
+        // Re-analyze if initial extraction was empty
         if (finalIngredients.length < 2 && researchData.guessed_ingredients) {
           finalIngredients = await safeAgentCall(() => analyzeIngredients(product.ingredients, product, persona, { modelType: 'agility' }), 'IngredientAgent_Retry', [], 10000);
+        }
+
+        if (finalIngredients.length < 2 && researchData.guessed_ingredients) {
+          finalIngredients = buildFallbackIngredientRows(researchData.guessed_ingredients);
         }
       }
 
@@ -123,7 +177,6 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
       updateStatus(7, 'Synthesizing verdict...');
       const w3Start = Date.now();
 
-      // Resolve persona if passed as a promise (Late-binding optimization)
       const resolvedPersona = (persona instanceof Promise) ? await persona : (persona || {});
 
       const [personaData, evidence, alts, verdict] = await Promise.all([

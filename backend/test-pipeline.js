@@ -3,7 +3,7 @@ const { query } = require('./src/db/pool');
 
 async function testPipeline() {
   console.log('--- MEDO VEDA PIPELINE TEST ---');
-  
+
   // Real-world "Manual Text" example: Maggi Masala Noodles
   const testInput = {
     type: 'text',
@@ -27,7 +27,7 @@ async function testPipeline() {
 
   console.log('[Test] Input:', testInput.content.slice(0, 100) + '...');
   console.log('[Test] User Profile:', JSON.stringify(mockUserProfile));
-  
+
   const start = Date.now();
   try {
     const result = await runAnalysisPipeline(testInput, mockUserProfile);
@@ -38,7 +38,7 @@ async function testPipeline() {
     console.log(`Product Name: ${result.productName}`);
     console.log(`Verdict: ${result.overallVerdict}`);
     console.log(`Confidence: ${result.confidenceScore}%`);
-    
+
     console.log('\n--- NUTRITION EXTRACTED ---');
     console.log(JSON.stringify(result.nutrition, null, 2));
 
@@ -48,6 +48,14 @@ async function testPipeline() {
     console.log('\n--- INGREDIENT ANALYSIS ---');
     result.ingredients.slice(0, 5).forEach(ing => {
       console.log(`- ${ing.name}: [${ing.status}] ${ing.standardGuideline}`);
+    });
+
+    console.log('\n--- CLAIMS VERIFICATION ---');
+    result.marketingClaims.forEach(claim => {
+      console.log(`[P] ${claim.claim}`);
+      console.log(`[V] ${claim.verdictLabel}`);
+      console.log(`[R] ${claim.reality}`);
+      console.log('---');
     });
 
     if (duration < 20000) {

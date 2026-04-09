@@ -81,7 +81,7 @@ function fixJson(str) {
   } catch (error) {
     let fixed = str.trim();
     // Rapid regex fixes for common LLM truncation/syntax errors
-    fixed = fixed.replace(/,\s*([}\]])/g, '$1'); 
+    fixed = fixed.replace(/,\s*([}\]])/g, '$1');
     fixed = fixed.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
     // Ensure it ends with a brace if truncated
     if (fixed.startsWith('{') && !fixed.endsWith('}')) fixed += '}';
@@ -105,21 +105,41 @@ function extractJSON(text) {
   for (const m of markers) {
     const sIdx = text.indexOf(m.start);
     const eIdx = text.lastIndexOf(m.end);
-    
+
     if (sIdx !== -1) {
       let raw = "";
       if (eIdx !== -1 && eIdx > sIdx) {
-        raw = text.substring(sIdx + m.start.length, eIdx).trim();
+        // If marker is '{', include it
+        const offset = m.start === "{" ? 0 : m.start.length;
+        const endOffset = m.end === "}" ? 1 : 0;
+        raw = text.substring(sIdx + offset, eIdx + endOffset).trim();
       } else {
-        raw = text.substring(sIdx + m.start.length).trim();
+        const offset = m.start === "{" ? 0 : m.start.length;
+        raw = text.substring(sIdx + offset).trim();
       }
-      
+
       if (raw) {
         try { return JSON.parse(raw); } catch (_) {
-          try { return JSON.parse(fixJson(raw)); } catch (__) {}
+          try { return JSON.parse(fixJson(raw)); } catch (__) { }
         }
       }
     }
+  }
+
+  // 2. Fallback: Regex for largest JSON block (V5.1 - Resilient to conversational text)
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    const raw = match[0];
+    try { return JSON.parse(raw); } catch (_) {
+      try { return JSON.parse(fixJson(raw)); } catch (__) { }
+    }
+  }
+
+  // 3. Last effort: Partial repair if it starts with { but never ended
+  const firstBrace = text.indexOf('{');
+  if (firstBrace !== -1 && text.lastIndexOf('}') < firstBrace) {
+    const raw = text.substring(firstBrace);
+    try { return JSON.parse(fixJson(raw)); } catch (_) { }
   }
 
   return null;
@@ -173,9 +193,10 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
       ? image
       : `data:image/jpeg;base64,${image}`;
 
+    // VISION-FIRST: Place image before text to prime the model's visual context
     userContent = [
-      { type: 'text', text: prompt },
-      { type: 'image_url', image_url: { url: imageUrl } }
+      { type: 'image_url', image_url: { url: imageUrl } },
+      { type: 'text', text: prompt }
     ];
   }
 
@@ -196,19 +217,39 @@ async function runNvidiaAgent(prompt, systemInstruction, options = {}) {
     // FALLBACK
     if (attempt === retries && model === CLINICAL_MODEL) model = AGILITY_MODEL;
 
+    // DIAGNOSTIC: Log model and prompt summary
+    const promptSummary = typeof prompt === 'string' ? prompt.substring(0, 120) : 'multi-content';
+    console.log(`[NVIDIA] model=${model} | attempt=${attempt} | prompt="${promptSummary}..."`);
+    if (modelType === 'vision' && image) {
+      const imgType = typeof image === 'string' && image.startsWith('http') ? 'URL' : 'base64';
+      console.log(`[NVIDIA] Vision image type: ${imgType}, length: ${typeof image === 'string' ? image.length : 'N/A'}`);
+    }
+
     try {
       const raw = await callNvidiaAPI(model, messages, maxTokens);
+
+      // DIAGNOSTIC: Log raw response summary
+      console.log(`[NVIDIA] Raw response (first 300 chars): ${typeof raw === 'string' ? raw.substring(0, 300) : JSON.stringify(raw).substring(0, 300)}`);
+
       if (!ensureJSON) return raw;
 
       const parsed = extractJSON(raw);
-      if (parsed) return parsed;
+      if (parsed) {
+        // DIAGNOSTIC: Log key fields from parsed result
+        if (modelType === 'vision') {
+          console.log(`[NVIDIA] Parsed vision result — product_name: "${parsed.product_name}", ingredients length: ${parsed.ingredients?.length || 0}, claims: ${parsed.marketing_claims?.length || 0}`);
+        }
+        return parsed;
+      }
 
+      console.warn(`[NVIDIA] JSON extraction failed for attempt ${attempt}. Raw length: ${raw?.length || 0}`);
       // Log failure but continue
       if (attempt < retries) {
         messages.push({ role: 'assistant', content: raw });
         messages.push({ role: 'user', content: "Fix JSON syntax. Markers only." });
       }
     } catch (err) {
+      console.error(`[NVIDIA] API error on attempt ${attempt}: ${err.message}`);
       if (attempt === retries) return ensureJSON ? { error: true, message: err.message } : `Error: ${err.message}`;
       await new Promise(r => setTimeout(r, 1000)); // Fast wait
     }

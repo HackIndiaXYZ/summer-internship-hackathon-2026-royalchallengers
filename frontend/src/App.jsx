@@ -14,6 +14,7 @@ import HistoryPage from './pages/HistoryPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 import Sidebar from './components/Sidebar';
+import MobileBottomNav from './components/MobileBottomNav';
 import { useLocation } from 'react-router-dom';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
   // Pages that should show the sidebar
   const internalPages = ['/dashboard', '/scan', '/history', '/profile-setup', '/analysis'];
   const showSidebar = internalPages.some(path => location.pathname.startsWith(path));
+  const hideMobileNav = location.pathname === '/auth' || location.pathname.startsWith('/scan/loading');
 
   // Auto-close on small screens
   React.useEffect(() => {
@@ -60,23 +62,23 @@ function App() {
         )}
 
         <main
-          className={`flex-1 transition-all duration-300 pt-20 min-w-0 ${showSidebar
+          className={`flex-1 transition-all duration-300 min-w-0 ${showSidebar
             ? `px-4 sm:px-6 md:px-8 ${isSidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-[88px]'}`
             : ''
-            }`}
+            } pb-28 lg:pb-0`}
           style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}
         >
-          <div className="w-full max-w-full min-h-[calc(100vh-80px)]">
+          <div className="w-full max-w-full min-h-[calc(100vh-80px)] pt-4 sm:pt-3">
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<AuthPage />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/scan" element={<ScanPage />} />
-              <Route path="/scan/loading/:scanId" element={<ReportLoadingPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/analysis/:id" element={<AnalysisReport />} />
-              <Route path="/analysis" element={<AnalysisReport />} />
-              <Route path="/report/:id" element={<AnalysisReport />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/scan" element={<ProtectedRoute><ScanPage /></ProtectedRoute>} />
+              <Route path="/scan/loading/:scanId" element={<ProtectedRoute><ReportLoadingPage /></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+              <Route path="/analysis/:id" element={<ProtectedRoute><AnalysisReport /></ProtectedRoute>} />
+              <Route path="/analysis" element={<ProtectedRoute><AnalysisReport /></ProtectedRoute>} />
+              <Route path="/report/:id" element={<ProtectedRoute><AnalysisReport /></ProtectedRoute>} />
               <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
 
               {/* Fallback */}
@@ -85,6 +87,8 @@ function App() {
           </div>
         </main>
       </div>
+
+      {!hideMobileNav && <MobileBottomNav />}
     </div>
   );
 }

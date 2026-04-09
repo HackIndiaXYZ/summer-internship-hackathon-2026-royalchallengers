@@ -35,7 +35,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           width: isOpen ? '280px' : '88px',
           x: 0
         }}
-        className={`fixed left-0 top-0 h-full bg-white border-r border-[#005144]/10 z-[70] transition-all duration-300 ease-in-out flex flex-col ${!isOpen ? 'items-center' : 'p-6'
+        className={`fixed left-0 top-0 h-full bg-white border-r border-[#005144]/10 z-[70] transition-all duration-300 ease-in-out flex flex-col ${!isOpen ? 'items-center' : 'p-4 sm:p-6'
           } ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Logo / Toggle Header */}
@@ -77,12 +77,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
               <Link
                 key={item.name}
                 to={item.path}
-                className={`flex items-center gap-4 p-4 rounded-2xl transition-all group relative ${isActive
+                className={`flex items-center gap-4 p-3.5 sm:p-4 rounded-2xl transition-all group relative min-h-[44px] ${isActive
                   ? 'bg-[#005144] text-white shadow-lg shadow-[#005144]/15'
                   : 'text-[#3e4946] hover:bg-[#005144]/5'
                   } ${!isOpen && 'justify-center px-0'}`}
               >
-                <span className={`material-symbols-outlined text-2xl ${isActive ? 'text-white' : 'text-[#005144]'}`}>
+                <span className={`material-symbols-outlined text-[22px] sm:text-2xl ${isActive ? 'text-white' : 'text-[#005144]'}`}>
                   {item.icon}
                 </span>
 
@@ -102,8 +102,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         </nav>
 
         {/* Bottom Section */}
-        <div className={`mt-auto w-full pt-8 border-t border-[#005144]/5 ${!isOpen && 'hidden'}`}>
-          <div className="bg-[#f2fcf9] p-5 rounded-3xl border border-[#005144]/5">
+        <div className={`mt-auto w-full pt-6 sm:pt-8 border-t border-[#005144]/5 ${!isOpen && 'hidden'}`}>
+          <div className="bg-[#f2fcf9] p-4 sm:p-5 rounded-3xl border border-[#005144]/5">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#005144] mb-2">Member Tier</p>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold text-[#141d1c]">Clinical Elite</span>

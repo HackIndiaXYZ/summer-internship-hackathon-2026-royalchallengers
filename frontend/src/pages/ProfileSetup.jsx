@@ -8,10 +8,11 @@ import { API_URL } from '../config';
 
 const ProfileSetup = ({ isModal = false, onComplete }) => {
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [savedProfile, setSavedProfile] = useState(null);
 
   // Step 1: Basic Details
   const [basicInfo, setBasicInfo] = useState({
@@ -28,6 +29,11 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
   // Step 3: Health Goals
   const [selectedGoals, setSelectedGoals] = useState([]);
 
+  const labelize = (value) =>
+    String(value || '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
@@ -35,6 +41,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
         const res = await axios.get(`${API_URL}/api/profile/${user.id}`);
         const p = res.data?.persona;
         if (p) {
+          setSavedProfile(p);
           setBasicInfo({
             age: p.age?.toString() || '',
             gender: p.gender || 'unspecified',
@@ -113,7 +120,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
 
     setSaving(true);
     try {
-      await axios.post(`${API_URL}/api/profile/setup`, {
+      const profilePayload = {
         user_id: user.id,
         age: parseInt(basicInfo.age) || 25,
         gender: basicInfo.gender,
@@ -122,10 +129,15 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
         dietary_preferences: [basicInfo.activityLevel].filter(Boolean),
         weight: parseFloat(basicInfo.weight) || null,
         height: parseFloat(basicInfo.height) || null
+      };
+
+      await axios.post(`${API_URL}/api/profile/setup`, {
+        ...profilePayload
       });
 
-      // Update user context with profile completion flag
-      updateUser({ profileComplete: true });
+      // Update user context with fresh profile data
+      const refreshed = await refreshProfile();
+      setSavedProfile(refreshed || profilePayload);
 
       toast.success('Clinical parameters updated successfully.', {
         duration: 3500,
@@ -140,7 +152,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
       if (onComplete) {
         onComplete();
       } else {
-        setTimeout(() => navigate('/dashboard'), 800);
+        setStep(1);
       }
     } catch (err) {
       console.error('Failed to save profile:', err);
@@ -164,7 +176,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
 
   return (
     <div className={isModal ? "" : "min-h-screen bg-[#f2fcf9] font-body text-[#141d1c] antialiased"}>
-      <main className={isModal ? "p-0" : "pt-28 pb-20 px-4 sm:px-6 max-w-2xl mx-auto"}>
+      <main className={isModal ? "p-0" : "pt-24 sm:pt-28 pb-20 px-3 sm:px-6 max-w-2xl mx-auto"}>
 
         {/* Header */}
         <div className="text-center mb-10">
@@ -175,6 +187,72 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
             Tell us about yourself. This takes 60 seconds and makes every analysis more relevant to you.
           </p>
         </div>
+
+        {/* Saved Profile Card */}
+        {savedProfile && (
+          <section className="mb-8 bg-white rounded-3xl border border-[#005144]/10 shadow-[0_2px_20px_rgba(0,81,68,0.08)] overflow-hidden">
+            <div className="bg-[#005144] text-white p-4 sm:p-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-base sm:text-lg font-black tracking-tight">Health Profile</h2>
+                <p className="text-[10px] sm:text-xs uppercase tracking-[0.14em] text-emerald-100/80 font-bold">Saved Permanently</p>
+              </div>
+              <span className="material-symbols-outlined text-2xl sm:text-3xl text-emerald-200">verified_user</span>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-[#f2fcf9] rounded-2xl p-3">
+                  <p className="text-[10px] uppercase tracking-widest font-black text-[#3e4946]/60">Age</p>
+                  <p className="text-lg font-black text-[#141d1c]">{savedProfile.age || '--'}</p>
+                </div>
+                <div className="bg-[#f2fcf9] rounded-2xl p-3">
+                  <p className="text-[10px] uppercase tracking-widest font-black text-[#3e4946]/60">Gender</p>
+                  <p className="text-lg font-black text-[#141d1c]">{labelize(savedProfile.gender) || '--'}</p>
+                </div>
+                <div className="bg-[#f2fcf9] rounded-2xl p-3">
+                  <p className="text-[10px] uppercase tracking-widest font-black text-[#3e4946]/60">Weight</p>
+                  <p className="text-lg font-black text-[#141d1c]">{savedProfile.weight ? `${savedProfile.weight} kg` : '--'}</p>
+                </div>
+                <div className="bg-[#f2fcf9] rounded-2xl p-3">
+                  <p className="text-[10px] uppercase tracking-widest font-black text-[#3e4946]/60">Height</p>
+                  <p className="text-lg font-black text-[#141d1c]">{savedProfile.height ? `${savedProfile.height} cm` : '--'}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-[#f8fbfa] rounded-2xl p-3.5 border border-[#005144]/8">
+                  <p className="text-[10px] uppercase tracking-widest font-black text-[#3e4946]/60 mb-2">Activity Level</p>
+                  <p className="text-sm font-bold text-[#141d1c]">{labelize(savedProfile.dietary_preferences?.[0]) || '--'}</p>
+                </div>
+
+                <div className="bg-[#f8fbfa] rounded-2xl p-3.5 border border-[#005144]/8">
+                  <p className="text-[10px] uppercase tracking-widest font-black text-[#3e4946]/60 mb-2">Health Conditions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(savedProfile.health_conditions?.length ? savedProfile.health_conditions : ['none']).map((condition) => (
+                      <span key={condition} className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.08em] bg-[#005144]/8 text-[#005144]">
+                        {labelize(condition)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-[#f8fbfa] rounded-2xl p-3.5 border border-[#005144]/8">
+                  <p className="text-[10px] uppercase tracking-widest font-black text-[#3e4946]/60 mb-2">Health Goals</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(savedProfile.health_goals || []).map((goal) => (
+                      <span key={goal} className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.08em] bg-emerald-100 text-emerald-700">
+                        {labelize(goal)}
+                      </span>
+                    ))}
+                    {!savedProfile.health_goals?.length && (
+                      <span className="text-xs font-medium text-[#3e4946]/60">No goals selected yet</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Progress Stepper */}
         <div className="flex items-center justify-center mb-12">
@@ -235,7 +313,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
                         placeholder="e.g. 28"
                         min="1"
                         max="120"
-                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-4 py-4 focus:ring-0 focus:border-[#005144]/30 focus:bg-white transition-all font-semibold text-[#141d1c] placeholder:text-[#3e4946]/30"
+                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-3 sm:px-4 py-3 focus:ring-0 focus:border-[#005144]/30 focus:bg-white transition-all font-semibold text-[#141d1c] placeholder:text-[#3e4946]/30"
                         value={basicInfo.age}
                         onChange={(e) => setBasicInfo({ ...basicInfo, age: e.target.value })}
                       />
@@ -243,7 +321,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[#3e4946] ml-1">Gender</label>
                       <select
-                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-4 py-4 focus:ring-0 focus:border-[#005144]/30 font-semibold text-[#141d1c]"
+                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-3 sm:px-4 py-3 focus:ring-0 focus:border-[#005144]/30 font-semibold text-[#141d1c]"
                         value={basicInfo.gender}
                         onChange={(e) => setBasicInfo({ ...basicInfo, gender: e.target.value })}
                       >
@@ -262,7 +340,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
                       <input
                         type="number"
                         placeholder="e.g. 70"
-                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-4 py-4 focus:ring-0 focus:border-[#005144]/30 focus:bg-white transition-all font-semibold text-[#141d1c] placeholder:text-[#3e4946]/30"
+                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-3 sm:px-4 py-3 focus:ring-0 focus:border-[#005144]/30 focus:bg-white transition-all font-semibold text-[#141d1c] placeholder:text-[#3e4946]/30"
                         value={basicInfo.weight}
                         onChange={(e) => setBasicInfo({ ...basicInfo, weight: e.target.value })}
                       />
@@ -272,7 +350,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
                       <input
                         type="number"
                         placeholder="e.g. 175"
-                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-4 py-4 focus:ring-0 focus:border-[#005144]/30 focus:bg-white transition-all font-semibold text-[#141d1c] placeholder:text-[#3e4946]/30"
+                        className="w-full bg-[#f2fcf9] border-2 border-transparent rounded-xl px-3 sm:px-4 py-3 focus:ring-0 focus:border-[#005144]/30 focus:bg-white transition-all font-semibold text-[#141d1c] placeholder:text-[#3e4946]/30"
                         value={basicInfo.height}
                         onChange={(e) => setBasicInfo({ ...basicInfo, height: e.target.value })}
                       />
@@ -282,7 +360,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
                   {/* Activity Level */}
                   <div className="space-y-3">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#3e4946] ml-1">Activity Level <span className="text-[#3e4946]/40 normal-case">optional</span></label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       {[
                         { id: 'sedentary', label: 'Sedentary', icon: 'chair', desc: 'Office-based, minimal movement' },
                         { id: 'lightly_active', label: 'Lightly Active', icon: 'directions_walk', desc: '1-3 days/week light exercise' },
@@ -292,7 +370,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
                         <button
                           key={level.id}
                           onClick={() => setBasicInfo({ ...basicInfo, activityLevel: level.id })}
-                          className={`p-4 rounded-xl text-left transition-all duration-200 border-2 ${basicInfo.activityLevel === level.id
+                          className={`p-3 sm:p-4 rounded-xl text-left transition-all duration-200 border-2 ${basicInfo.activityLevel === level.id
                               ? 'bg-[#005144]/5 border-[#005144] shadow-sm'
                               : 'bg-[#f2fcf9] border-transparent hover:border-[#005144]/15'
                             }`}

@@ -25,15 +25,17 @@ async function analyzePersonalization(ingredientsAnalysis, persona, options = {}
     TASK: Calculate exactly what clinical impact occurs if the user consumes this SPECIFIC product daily.
     
     Steps:
-    1. Identify the DOMINANT biochemical risk (e.g., specific chemical additive, high HFCS, trans-fats).
-    2. impactLabel MUST be specific (e.g., "Maltodextrin Load:", "Artificial Color Burden:", "Palm Oil Accumulation:").
-    3. impactValue MUST be a clinical stat or comparison (e.g., "22g over WHO limit", "150% Daily Intake for Kids", "3x Recommended Max").
-    4. impact description must name both the ingredient and the persona's health condition.
-    5. warnings must be 2-3 clinical bullet points.
+    1. Identify the PRIMARY health risk specific to this product's ingredient profile.
+    2. Write the impactLabel based on the DOMINANT concern (e.g., "Sugar Overload:" for high-sugar products, "Trans Fat Risk:" for processed snacks). NOT always sodium.
+    3. Write the impactValue as a realistic quantitative stat (e.g., "180% RDA", "3x sugar limit", "2.5x Safe Limit"). Base it on actual ingredient quantities if known.
+    4. Write a detailed impact description specific to this product.
+    5. Write 2-3 specific warnings relevant to THIS user's health conditions.
     
-    CRITICAL: No generic "Sodium" defaults. Be hyper-specific to ${JSON.stringify(ingredientsAnalysis?.slice(0, 3))}.
+    CRITICAL: The impactLabel and impactValue MUST reflect the actual dominant ingredients of this product. Do NOT default to "Sodium Intake Increase: 150%" unless sodium is genuinely the main concern.
     
-    Return ONLY valid raw JSON. No chatter. No markdown code blocks.
+    CRITICAL: **FORBIDDEN**: Do NOT include any references to "dental caries" or general "dental health" boilerplate. Focus on metabolic and cardiovascular impacts.
+    
+    CRITICAL: Return ONLY valid JSON encapsulated between <<<JSON_START>>> and <<<JSON_END>>> symbols.
 
     ## SCHEMA:
     {
@@ -47,7 +49,7 @@ async function analyzePersonalization(ingredientsAnalysis, persona, options = {}
       "rescoredIngredients": [
         {
           "name": "string",
-          "status": "Acceptable | Caution | Harmful"
+          "status": "Acceptable | Limit | Caution | Harmful"
         }
       ]
     }`;

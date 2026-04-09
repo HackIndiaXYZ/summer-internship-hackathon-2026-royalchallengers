@@ -28,12 +28,14 @@ export const AuthProvider = ({ children }) => {
       
       // Fetch profile to check if it's complete and restore and data
       let profileComplete = false;
+      let profileData = null;
       try {
         const profileRes = await axios.get(`${API_URL}/api/profile/${userData.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (profileRes.data?.persona) {
           profileComplete = true;
+          profileData = profileRes.data.persona;
         }
       } catch (err) {
         console.error('Failed to fetch profile during login:', err);
@@ -42,7 +44,8 @@ export const AuthProvider = ({ children }) => {
       const sessionUser = {
         ...userData,
         token,
-        profileComplete
+        profileComplete,
+        profileData
       };
 
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -62,7 +65,9 @@ export const AuthProvider = ({ children }) => {
       const sessionUser = {
         ...userData,
         name: name || userData.name || 'User',
-        token
+        token,
+        profileComplete: false,
+        profileData: null
       };
 
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -72,6 +77,25 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Registration failed:', err);
       return false;
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const res = await axios.get(`${API_URL}/api/profile/${user.id}`);
+      if (res.data?.persona) {
+        const profileData = res.data.persona;
+        updateUser({
+          profileComplete: true,
+          profileData
+        });
+        return profileData;
+      }
+      return null;
+    } catch (err) {
+      console.error('Failed to refresh profile:', err);
+      return null;
     }
   };
 
@@ -88,7 +112,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, refreshProfile, loading }}>
       {children}
     </AuthContext.Provider>
   );

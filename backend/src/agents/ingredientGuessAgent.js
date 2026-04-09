@@ -1,4 +1,5 @@
 const { runNvidiaAgent } = require('../lib/nvidia');
+const { lookupProductOnWeb } = require('../services/productWebSearch');
 
 /**
  * Clinical Ingredient & Nutrition Research Agent (V6.0 — Production Hardened)
@@ -7,15 +8,25 @@ const { runNvidiaAgent } = require('../lib/nvidia');
  * TARGET: ELIMINATE 0-DATA HALLUCINATIONS.
  */
 async function researchProductIngredients(productName, productCategory) {
+  const webResult = await lookupProductOnWeb(productName, productCategory);
+
+  const hasWebNutrition = webResult && webResult.nutrition && Object.values(webResult.nutrition).some(v => v !== null && v !== undefined);
+  const hasWebIngredients = webResult && webResult.guessed_ingredients && webResult.guessed_ingredients.trim().length > 0;
+
+  if (hasWebNutrition || hasWebIngredients) {
+    console.log('[ResearchAgent] Using web-backed fallback from Open Food Facts for:', productName);
+    return webResult;
+  }
+
   const systemPrompt = `[MODE: CLINICAL_RESEARCH_PROTO_V6.2]
   Product: ${productName} (${productCategory})
   
   TASK: Recall clinical profile (ingredients + per 100g nutrition) for this EXACT product.
   MANDATORY: 
-  1. Reference WHO/FSSAI nutritional benchmarks for this category (${productCategory}).
-  2. If the product is "Maggi noodles", use standard data (~380-400 kcal, ~12g fat, ~1.2g sodium per 100g).
-  3. NEVER return 0 for calories, protein, or carbohydrates unless it is a beverage like water.
-  4. Ensure ALL 6 nutritional fields are populated with realistic scientific estimates.
+  1. Reference scientific/regulatory databases for this product category (${productCategory}).
+  2. If you are not 90%+ certain of the ingredients for this SPECIFIC variant of ${productName}, leave the "guessed_ingredients" field empty.
+  3. NEVER return 0 for calories, protein, or carbohydrates. 
+  4. Ensure ALL 6 nutritional fields are populated with realistic scientific estimates if ingredients are found.
   
   SCHEMA: {
     "guessed_ingredients": "Precise list of likely ingredients",
@@ -42,7 +53,7 @@ async function researchProductIngredients(productName, productCategory) {
     }
   );
 
-  // FAIL-SAFE: If model fails or returns 0 for a known product, use a "Unknown" marker instead of 0 to avoid UI/clinical misinterpretation
+  // FAIL-SAFE: If both web lookup and model fallback fail, keep fields null to avoid fake precision.
   return result || {
     "guessed_ingredients": "Ingredients currently being verified via clinical database.",
     "nutrition": {

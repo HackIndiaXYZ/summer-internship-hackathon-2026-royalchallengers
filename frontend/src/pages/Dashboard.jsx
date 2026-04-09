@@ -8,6 +8,60 @@ import Modal from "../components/Modal";
 import ProfileSetup from "./ProfileSetup";
 import Footer from "../components/Footer";
 
+const normalizeVerdict = (value) => {
+  const verdict = String(value || '').toLowerCase().trim();
+  if (verdict === 'recommended') return 'safe';
+  if (verdict === 'avoid') return 'risk';
+  if (verdict === 'safe' || verdict === 'limit' || verdict === 'risk') return verdict;
+  return 'limit';
+};
+
+const parseAnalysis = (scan) => {
+  if (!scan) return null;
+  if (typeof scan.analysis_result === 'string') {
+    try {
+      return JSON.parse(scan.analysis_result);
+    } catch {
+      return null;
+    }
+  }
+  return scan.analysis_result || null;
+};
+
+const getVerdictCounts = (scans = []) => {
+  return scans.reduce(
+    (acc, scan) => {
+      const analysis = parseAnalysis(scan);
+      const verdict = normalizeVerdict(scan.overall_verdict || analysis?.overallVerdict);
+      acc[verdict] += 1;
+      return acc;
+    },
+    { safe: 0, limit: 0, risk: 0 }
+  );
+};
+
+const getLatestInsightFromScans = (scans = []) => {
+  for (const scan of scans) {
+    const analysis = parseAnalysis(scan);
+    const candidate = analysis?.healthImpact?.personalizedSummary || analysis?.adviceCard?.primaryAdvice;
+    if (candidate && String(candidate).trim()) {
+      return String(candidate).trim();
+    }
+  }
+  return null;
+};
+
+const getLatestSuggestionFromScans = (scans = []) => {
+  for (const scan of scans) {
+    const analysis = parseAnalysis(scan);
+    const candidate = analysis?.adviceCard?.consumptionGuideline || analysis?.adviceCard?.primaryAdvice;
+    if (candidate && String(candidate).trim()) {
+      return String(candidate).trim();
+    }
+  }
+  return null;
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [realScans, setRealScans] = useState([]);
@@ -21,11 +75,7 @@ const Dashboard = () => {
       scoreColor: "#e2e8f0"
     },
     stats: {
-      totalScans: 0,
-      vitals: "--",
-      sleep: "--",
-      recovery: "--",
-      activity: "--"
+      totalScans: 0
     }
   });
 
@@ -74,16 +124,19 @@ const Dashboard = () => {
           scoreColor: "#006b5b"
         },
         stats: {
-          totalScans: 12,
-          vitals: "94%",
-          sleep: "78%",
-          recovery: "81%",
-          activity: "64%"
+          totalScans: 12
         }
       });
       setHasData(true);
     }
   }, [user]);
+
+  const verdictCounts = getVerdictCounts(realScans);
+  const latestInsight = getLatestInsightFromScans(realScans);
+  const latestSuggestion = getLatestSuggestionFromScans(realScans);
+
+  const resolvedInsight = latestInsight || dashboardData.aiInsight?.insight || "Perform your first scan to generate AI insight.";
+  const resolvedSuggestion = latestSuggestion || dashboardData.aiInsight?.suggestion || "Perform a quick scan lab test.";
 
   return (
     <div className="bg-surface text-on-surface antialiased min-h-screen tonal-layering">
@@ -101,13 +154,13 @@ const Dashboard = () => {
       </style>
 
 
-      <main className="pt-20 md:pt-24 pb-32 px-4 md:px-6 max-w-7xl mx-auto">
+      <main className="pt-20 md:pt-24 pb-32 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto">
         {/* Header Section */}
         <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 w-full">
             <div>
               <div className="flex items-center gap-4 mb-1">
-                <p className="text-on-surface-variant font-medium tracking-wide">
+                <p className="text-[19px] text-on-surface-variant font-medium tracking-wide leading-tight">
                   {user ? `Welcome back, ${user.name}` : "Welcome back, Physician-001"}
                 </p>
                 {!user && (
@@ -115,23 +168,9 @@ const Dashboard = () => {
                     Get Started
                   </Link>
                 )}
-                {user && (
-                  <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                    Live Analysis Active
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-2">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight">Clinical Overview</h1>
-                {user && (
-                  <button 
-                    onClick={() => setIsProfileModalOpen(true)}
-                    className="text-[10px] font-black uppercase tracking-widest text-[#005144]/60 hover:text-[#005144] transition-colors flex items-center gap-1 border border-[#005144]/10 px-2 py-1 rounded-md mt-1"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">edit</span>
-                    Edit Profile
-                  </button>
-                )}
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight whitespace-nowrap">Clinical Overview</h1>
               </div>
             </div>
             <Link to="/scan" className="flex items-center justify-center gap-2 bg-[#005144] text-white px-6 md:px-8 py-3 md:py-4 rounded-xl font-bold text-base md:text-lg shadow-xl hover:scale-105 transition-all w-full md:w-auto">
@@ -142,31 +181,77 @@ const Dashboard = () => {
         </header>
 
         {/* Bento Grid Dashboard */}
-        {!hasData && user ? (
+        {!hasData && user && !user.profileData ? (
           <div className="bg-white/40 backdrop-blur-md border-2 border-dashed border-[#005144]/10 rounded-3xl md:rounded-[2.5rem] p-8 md:p-20 flex flex-col items-center text-center shadow-sm">
             <div className="w-24 h-24 bg-[#005144]/5 rounded-full flex items-center justify-center mb-8">
               <span className="material-symbols-outlined text-[#005144] text-5xl animate-pulse">biotech</span>
             </div>
             <h2 className="text-3xl font-bold text-[#141d1c] mb-4">Awaiting Clinical Calibration</h2>
             <p className="text-[#3e4946] max-w-lg mx-auto mb-12 text-lg font-medium opacity-80">
-              Your high-fidelity diagnostic dashboard is currently in standby. Perform your first specimen scan or complete your biometric profile to generate real-time biological insights.
+              Your high-fidelity diagnostic dashboard is currently in standby. Complete your biometric profile to generate real-time biological insights.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
-              <Link to="/scan" className="bg-[#005144] text-white px-8 md:px-10 py-4 md:py-5 rounded-2xl font-bold text-base md:text-lg shadow-xl hover:scale-105 transition-all outline-none w-full sm:w-auto">
-                Access Scan Lab
-              </Link>
               <button 
                 onClick={() => setIsProfileModalOpen(true)}
-                className="bg-white/50 backdrop-blur-sm text-[#005144] border border-[#005144]/20 px-8 md:px-10 py-4 md:py-5 rounded-2xl font-bold text-base md:text-lg hover:bg-[#005144]/5 transition-all outline-none w-full sm:w-auto"
+                className="bg-[#005144] text-white px-8 md:px-10 py-4 md:py-5 rounded-2xl font-bold text-base md:text-lg shadow-xl hover:scale-105 transition-all outline-none w-full sm:w-auto"
               >
-                Complete Profile
+                Complete Biometric Profile
               </button>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-12 gap-6 lg:gap-8">
-          {/* Health Score Visualization (Main Tile) */}
-          <section className="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-[2rem] lg:rounded-3xl p-6 md:p-10 shadow-[0_2px_24px_rgba(0,107,91,0.08)] relative overflow-hidden group border border-primary/5">
+            {/* Bio-Profile Card (New) */}
+            {user?.profileData && (
+              <section className="col-span-12 lg:col-span-4 bg-[#005144] text-white rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                  <span className="material-symbols-outlined text-8xl">clinical_notes</span>
+                </div>
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
+                      <span className="material-symbols-outlined text-emerald-300">person</span>
+                    </div>
+                    <div>
+                      <h3 className="font-black text-xl tracking-tight">Clinical Persona</h3>
+                      <p className="text-xs text-emerald-100/60 uppercase tracking-widest font-black">Active Profile</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <span className="text-sm font-medium text-emerald-100/70">Metabolic Age</span>
+                      <span className="font-bold">{user.profileData.age} Years</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <span className="text-sm font-medium text-emerald-100/70">Constitution (BP)</span>
+                      <span className="font-bold capitalize">{user.profileData.gender}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <span className="text-sm font-medium text-emerald-100/70">Health Goals</span>
+                      <div className="flex gap-1 flex-wrap justify-end max-w-[150px]">
+                        {user.profileData.health_goals?.slice(0, 2).map(goal => (
+                          <span key={goal} className="bg-white/5 text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded border border-white/10">
+                            {goal.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300 mb-2">System Status</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                      <p className="text-xs font-medium">Pipeline synced with {user.profileComplete ? 'Personal Context' : 'Standard Baseline'}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Health Score Visualization (Modified span to handle layout change) */}
+            <section className={`col-span-12 ${user?.profileData ? 'lg:col-span-8' : 'lg:col-span-12'} bg-surface-container-lowest rounded-[2rem] lg:rounded-3xl p-6 md:p-10 shadow-[0_2px_24px_rgba(0,107,91,0.08)] relative overflow-hidden group border border-primary/5`}>
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
               <div>
                 <h2 className="text-xl lg:text-2xl font-black text-on-surface mb-1 tracking-tight">Overall Health Score</h2>
@@ -176,12 +261,6 @@ const Dashboard = () => {
                 <div className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
                   +2.4% vs last week
                 </div>
-                <button 
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="text-[10px] font-black uppercase tracking-widest text-[#005144] border-b border-[#005144]/20 pb-0.5"
-                >
-                  Edit Bio-Data
-                </button>
               </div>
             </div>
             <div className="flex flex-col md:flex-row items-center justify-around py-4 lg:py-8 gap-8 lg:gap-12">
@@ -205,22 +284,18 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="flex-1 w-full">
-                <div className="grid grid-cols-2 gap-3 lg:gap-4">
-                  <div className="p-4 bg-surface-container-low rounded-2xl border border-primary/5">
-                    <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-1 opacity-60">Vitals</p>
-                    <p className="text-xl lg:text-2xl font-black text-on-surface tracking-tighter">{dashboardData.stats.vitals}</p>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+                  <div className="p-3 sm:p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col items-center justify-center min-h-[92px]">
+                    <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 text-center">Safe</p>
+                    <p className="text-2xl lg:text-3xl font-black text-emerald-700 tracking-tighter text-center">{verdictCounts.safe}</p>
                   </div>
-                  <div className="p-4 bg-surface-container-low rounded-2xl border border-primary/5">
-                    <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-1 opacity-60">Sleep</p>
-                    <p className="text-xl lg:text-2xl font-black text-on-surface tracking-tighter">{dashboardData.stats.sleep}</p>
+                  <div className="p-3 sm:p-4 bg-amber-50 rounded-2xl border border-amber-100 flex flex-col items-center justify-center min-h-[92px]">
+                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1 text-center">Limit</p>
+                    <p className="text-2xl lg:text-3xl font-black text-amber-700 tracking-tighter text-center">{verdictCounts.limit}</p>
                   </div>
-                  <div className="p-4 bg-surface-container-low rounded-2xl border border-primary/5">
-                    <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-1 opacity-60">Recovery</p>
-                    <p className="text-xl lg:text-2xl font-black text-on-surface tracking-tighter">{dashboardData.stats.recovery}</p>
-                  </div>
-                  <div className="p-4 bg-surface-container-low rounded-2xl border border-primary/5">
-                    <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest mb-1 opacity-60">Activity</p>
-                    <p className="text-xl lg:text-2xl font-black text-on-surface tracking-tighter">{dashboardData.stats.activity}</p>
+                  <div className="p-3 sm:p-4 bg-rose-50 rounded-2xl border border-rose-100 flex flex-col items-center justify-center min-h-[92px]">
+                    <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-1 text-center">Risk</p>
+                    <p className="text-2xl lg:text-3xl font-black text-rose-700 tracking-tighter text-center">{verdictCounts.risk}</p>
                   </div>
                 </div>
               </div>
@@ -235,13 +310,13 @@ const Dashboard = () => {
             <div>
               <h2 className="text-xl lg:text-2xl font-black text-white mb-4 lg:mb-6 tracking-tight">AI Insight</h2>
               <p className="text-emerald-100/80 leading-relaxed mb-6 lg:mb-8 text-sm lg:text-base font-medium">
-                {dashboardData.aiInsight.insight}
+                {resolvedInsight}
               </p>
             </div>
             <div className="p-4 lg:p-5 bg-white/5 rounded-2xl backdrop-blur-md border border-white/10">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-emerald-400 text-lg">lightbulb</span>
-                <span className="text-[10px] lg:text-xs font-black text-white uppercase tracking-widest leading-tight">Recommended Action: <span className="text-emerald-300 font-medium normal-case tracking-normal text-sm block mt-1">{dashboardData.aiInsight.suggestion}</span></span>
+                <span className="text-[10px] lg:text-xs font-black text-white uppercase tracking-widest leading-tight">Recommended Action: <span className="text-emerald-300 font-medium normal-case tracking-normal text-sm block mt-1">{resolvedSuggestion}</span></span>
               </div>
             </div>
           </section>

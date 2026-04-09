@@ -218,7 +218,7 @@ const ScanPage = () => {
   return (
     <div className="min-h-screen bg-surface font-body text-on-surface selection:bg-primary-fixed-dim" style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}>
 
-      <main className="pt-20 md:pt-24 pb-32 px-4 max-w-5xl mx-auto min-h-screen">
+      <main className="pt-20 md:pt-24 pb-32 px-3 sm:px-4 max-w-5xl mx-auto min-h-screen">
         {/* Header Section */}
         <header className="mb-8 md:mb-12 text-center md:text-left">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4">
@@ -253,12 +253,12 @@ const ScanPage = () => {
             <div className="flex sm:hidden items-center justify-between p-2 bg-surface-container rounded-2xl shadow-inner gap-2">
               <button 
                 onClick={() => cycleMethod('prev')}
-                className="p-3 bg-white/50 rounded-xl text-primary flex items-center justify-center active:scale-95 transition-transform"
+                className="p-3 bg-white/50 rounded-xl text-primary flex items-center justify-center active:scale-95 transition-transform min-h-[44px] min-w-[44px]"
               >
                 <span className="material-symbols-outlined text-[20px]">chevron_left</span>
               </button>
               
-              <div className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-primary text-white rounded-xl shadow-lg shadow-primary/10 overflow-hidden relative group">
+              <div className="flex-1 flex items-center justify-center gap-2 py-3 px-3 bg-primary text-white rounded-xl shadow-lg shadow-primary/10 overflow-hidden relative group min-h-[44px]">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeMethod}
@@ -280,7 +280,7 @@ const ScanPage = () => {
 
               <button 
                 onClick={() => cycleMethod('next')}
-                className="p-3 bg-white/50 rounded-xl text-primary flex items-center justify-center active:scale-95 transition-transform"
+                className="p-3 bg-white/50 rounded-xl text-primary flex items-center justify-center active:scale-95 transition-transform min-h-[44px] min-w-[44px]"
               >
                 <span className="material-symbols-outlined text-[20px]">chevron_right</span>
               </button>
@@ -296,7 +296,7 @@ const ScanPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
-                className="relative overflow-hidden rounded-[2rem] bg-on-surface min-h-[380px] md:min-h-0 md:aspect-[21/9] group"
+                className="relative overflow-hidden rounded-[2rem] bg-on-surface min-h-[300px] sm:min-h-[340px] md:min-h-0 md:aspect-[21/9] group"
               >
                 <img
                   className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay group-hover:scale-110 transition-transform duration-[2000ms]"

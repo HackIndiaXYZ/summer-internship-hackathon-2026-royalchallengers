@@ -24,8 +24,8 @@ const Navbar = ({ onLogoClick }) => {
   return (
     <>
       <nav className="fixed top-0 w-full z-50 bg-[#f2fcf9]/80 backdrop-blur-md border-b border-[#005144]/10">
-        <div className="max-w-[1400px] mx-auto px-6">
-          <div className="flex items-center h-24 relative">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+          <div className="flex items-center h-20 sm:h-24 relative">
             {/* Left Section: Logo / Toggle */}
             <div className="flex items-center lg:w-[280px] flex-1 lg:flex-none">
               <div
@@ -35,7 +35,7 @@ const Navbar = ({ onLogoClick }) => {
                   else navigate('/');
                 }}
               >
-              <img src={logo} alt="Medo Veda" className="h-18 w-auto object-contain" />
+              <img src={logo} alt="Medo Veda" className="h-14 sm:h-16 w-auto object-contain" />
               </div>
             </div>
 
@@ -63,9 +63,9 @@ const Navbar = ({ onLogoClick }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center gap-2 sm:gap-3 bg-white p-1 pr-3 sm:pr-4 rounded-xl sm:rounded-2xl border border-[#005144]/10 shadow-sm hover:shadow-md transition-all"
+                    className="flex items-center gap-2 sm:gap-3 bg-white p-1.5 pr-3 sm:pr-4 rounded-xl sm:rounded-2xl border border-[#005144]/10 shadow-sm hover:shadow-md transition-all min-h-[44px]"
                   >
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#005144] flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-[#005144] flex items-center justify-center flex-shrink-0">
                       <span className="material-symbols-outlined text-white text-lg sm:text-xl">person</span>
                     </div>
                     <div className="text-left hidden sm:block">
@@ -121,7 +121,7 @@ const Navbar = ({ onLogoClick }) => {
 
               {/* Mobile Menu Button */}
               <button
-                className="lg:hidden p-2 text-[#005144] bg-[#005144]/5 rounded-xl"
+                className="hidden p-2.5 text-[#005144] bg-[#005144]/5 rounded-xl min-h-[44px] min-w-[44px]"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
                 <span className="material-symbols-outlined text-2xl">
@@ -149,7 +149,7 @@ const Navbar = ({ onLogoClick }) => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed top-0 right-0 h-full w-[60vw] bg-white z-[1000] shadow-[0_0_50px_rgba(0,0,0,0.1)] flex flex-col"
+              className="lg:hidden fixed top-0 right-0 h-full w-[78vw] max-w-[360px] bg-white z-[1000] shadow-[0_0_50px_rgba(0,0,0,0.1)] flex flex-col"
             >
               <div className="p-8 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-12">

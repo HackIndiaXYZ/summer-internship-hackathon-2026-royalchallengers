@@ -89,7 +89,7 @@ const HistoryPage = () => {
 
   return (
     <div className="bg-surface text-on-surface min-h-screen tonal-layering" style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', position: 'relative', overscrollBehaviorX: 'none' }}>
-      <main className="pt-24 pb-32 px-6 max-w-7xl mx-auto">
+      <main className="pt-24 pb-32 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto">
         <header className="mb-8 md:mb-12 text-center md:text-left">
           <h2 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight mb-3">Scan History</h2>
           <p className="text-on-surface-variant leading-relaxed max-w-2xl text-xs md:text-base opacity-70 mx-auto md:mx-0">
@@ -127,7 +127,7 @@ const HistoryPage = () => {
             <p className="text-xs font-bold uppercase tracking-widest text-[#005144]/60">Syncing Clinical Records...</p>
           </div>
         ) : scans.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             {scans.map((scan) => (
               <Link
                 key={scan.id}
@@ -160,7 +160,7 @@ const HistoryPage = () => {
                       </span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-[#141d1c] tracking-tight mb-0.5 line-clamp-1 max-w-[200px]">
+                      <h3 className="text-lg font-black text-[#141d1c] tracking-tight mb-0.5 line-clamp-1 max-w-full sm:max-w-[200px]">
                         {scan.product_name || `${scan.input_method.toUpperCase()} SCAN`}
                       </h3>
                       <p className="text-[10px] text-[#005144] font-bold uppercase tracking-widest">

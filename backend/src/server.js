@@ -34,6 +34,14 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB limit (increased for 4K specimens)
 });
 
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED_REJECTION]', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[UNCAUGHT_EXCEPTION]', error);
+});
+
 const app = express();
 
 // Middleware

@@ -57,6 +57,37 @@ const AnalysisReport = () => {
   if (loading) return <LoadingSkeleton />;
   if (!report) return <EmptyState />;
 
+  const normalizeNutritionValue = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const lowered = raw.toLowerCase();
+    if (lowered === 'n/a' || lowered === 'na' || lowered === 'null' || lowered === '—' || lowered === '-') {
+      return null;
+    }
+
+    const numeric = Number(raw.replace(/[^0-9.\-]/g, ''));
+    return Number.isFinite(numeric) ? numeric : null;
+  };
+
+  const pickNutritionField = (source, keys) => {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(source || {}, key)) {
+        const value = normalizeNutritionValue(source[key]);
+        if (value !== null) return value;
+      }
+    }
+    return null;
+  };
+
+  const hasNutritionData = (source) => {
+    if (!source || typeof source !== 'object') return false;
+    return Object.values(source).some((value) => normalizeNutritionValue(value) !== null);
+  };
+
   const {
     productName: rawProductName,
     brand,
@@ -68,8 +99,31 @@ const AnalysisReport = () => {
     healthImpact = {},
     adviceCard = {},
     alternativeResources = { items: [] },
-    nutrition = {}
+    nutrition: rawNutrition = {}
   } = report;
+
+  const normalizedIngredients = (ingredients || []).map((ing) => ({
+    name: ing?.name || 'Unknown Ingredient',
+    standardGuideline: ing?.standardGuideline || 'WHO/FSSAI: Refer to product-specific safe intake and additive limits.',
+    status: ing?.status || 'Caution'
+  }));
+
+  const nutritionSource = [
+    rawNutrition,
+    report.nutritionalSnapshot,
+    report.nutrition_snapshot,
+    report.healthImpact?.nutritionalSnapshot,
+    report.healthImpact?.nutrition
+  ].find((source) => hasNutritionData(source)) || {};
+
+  const normalizedNutrition = {
+    calories: pickNutritionField(nutritionSource, ['calories', 'energy_kcal', 'kcal', 'energy']),
+    fat: pickNutritionField(nutritionSource, ['fat', 'total_fat']),
+    sugar: pickNutritionField(nutritionSource, ['sugar', 'sugars']),
+    salt: pickNutritionField(nutritionSource, ['salt', 'sodium', 'sodium_salt_equivalent']),
+    protein: pickNutritionField(nutritionSource, ['protein', 'proteins']),
+    carbohydrates: pickNutritionField(nutritionSource, ['carbohydrates', 'carbs', 'carbohydrate'])
+  };
 
   // Robust product name — check all possible locations in the response object
   const productName = rawProductName || report.product_name || brand || 'Product Analysis';
@@ -108,8 +162,8 @@ const AnalysisReport = () => {
           <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
             <div className="space-y-1">
               <div className="flex justify-between items-start gap-2">
-                <h1 className="text-[15px] sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight truncate">
-                  {brand || productName}
+                <h1 className="text-[17px] sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
+                  {brand && brand !== productName ? `${brand} ${productName}` : productName}
                 </h1>
                 <span className={`px-2 py-0.5 rounded-full text-white font-bold text-[9px] sm:text-xs uppercase tracking-wider flex-shrink-0 mt-1 ${getVerdictColor(overallVerdict)}`}>
                   {overallVerdict}
@@ -153,16 +207,24 @@ const AnalysisReport = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(showAllIngredients ? ingredients : ingredients.slice(0, 4)).map((ing, idx) => (
+                {(showAllIngredients ? normalizedIngredients : normalizedIngredients.slice(0, 4)).map((ing, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
                     <td className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-slate-800 text-[13px] sm:text-base">{ing.name}</td>
                     <td className="px-4 sm:px-6 py-3 sm:py-4 text-left text-slate-500 text-xs sm:text-sm font-medium">{ing.standardGuideline}</td>
                     <td className="px-4 sm:px-6 py-3 sm:py-4 text-right">
                       <div className="flex items-center justify-end gap-1 sm:gap-1.5 font-bold text-[11px] sm:text-sm">
-                        <span className={`material-symbols-outlined text-[14px] sm:text-[18px] ${ing.status === 'Acceptable' ? 'text-emerald-500' : ing.status === 'Caution' ? 'text-amber-500' : 'text-red-500'}`}>
+                        <span className={`material-symbols-outlined text-[14px] sm:text-[18px] ${
+                          ing.status === 'Acceptable' ? 'text-emerald-500' : 
+                          ing.status === 'Limit' || ing.status === 'Caution' ? 'text-amber-500' : 
+                          'text-red-500'
+                        }`}>
                           {ing.status === 'Acceptable' ? 'check_box' : 'warning'}
                         </span>
-                        <span className={ing.status === 'Acceptable' ? 'text-emerald-500' : ing.status === 'Caution' ? 'text-amber-500' : 'text-red-500'}>
+                        <span className={
+                          ing.status === 'Acceptable' ? 'text-emerald-500' : 
+                          ing.status === 'Limit' || ing.status === 'Caution' ? 'text-amber-500' : 
+                          'text-red-500'
+                        }>
                           {ing.status}
                         </span>
                       </div>
@@ -171,12 +233,12 @@ const AnalysisReport = () => {
                 ))}
               </tbody>
             </table>
-            {ingredients.length > 4 && (
+            {normalizedIngredients.length > 4 && (
               <button
                 onClick={() => setShowAllIngredients(!showAllIngredients)}
                 className="w-full py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors flex items-center justify-center gap-2 border-t border-slate-50"
               >
-                {showAllIngredients ? 'Show Less' : `Show ${ingredients.length - 4} More Ingredients`}
+                {showAllIngredients ? 'Show Less' : `Show ${normalizedIngredients.length - 4} More Ingredients`}
                 <span className={`material-symbols-outlined text-[16px] transition-transform ${showAllIngredients ? 'rotate-180' : ''}`}>
                   expand_more
                 </span>
@@ -188,22 +250,22 @@ const AnalysisReport = () => {
         {/* SECTION 2.5: Nutritional Snapshot (Hardened V7.0) */}
         <div className="space-y-4">
           <h2 className="text-[22px] font-bold text-[#111827]">Nutritional Snapshot</h2>
-          <div className="grid grid-cols-3 gap-[8px] sm:gap-[12px]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
             {[
-              { emoji: '🔥', label: 'Calories', value: nutrition?.calories, unit: ' kcal' },
-              { emoji: '🧈', label: 'Fat', value: nutrition?.fat, unit: 'g' },
-              { emoji: '🍬', label: 'Sugar', value: nutrition?.sugar, unit: 'g' },
-              { emoji: '🧂', label: 'Salt', value: nutrition?.salt, unit: 'g' },
-              { emoji: '🥩', label: 'Protein', value: nutrition?.protein, unit: 'g' },
-              { emoji: '🍞', label: 'Carbs', value: nutrition?.carbohydrates, unit: 'g' },
+              { emoji: '🔥', label: 'Calories', value: normalizedNutrition.calories, unit: ' kcal' },
+              { emoji: '🧈', label: 'Fat', value: normalizedNutrition.fat, unit: 'g' },
+              { emoji: '🍬', label: 'Sugar', value: normalizedNutrition.sugar, unit: 'g' },
+              { emoji: '🧂', label: 'Salt', value: normalizedNutrition.salt, unit: 'g' },
+              { emoji: '🥩', label: 'Protein', value: normalizedNutrition.protein, unit: 'g' },
+              { emoji: '🍞', label: 'Carbs', value: normalizedNutrition.carbohydrates, unit: 'g' },
             ].map((item, idx) => {
-              const displayValue = item.value === 0 ? '0' : (item.value || 'N/A');
+              const displayValue = item.value === 0 ? '0' : (item.value ?? 'N/A');
               const isNA = displayValue === 'N/A' || displayValue === '—' || displayValue === 'null';
 
               return (
-                <div key={idx} className="bg-[#F3F4F6] rounded-[16px] p-2.5 sm:p-5 flex flex-col items-center justify-center text-center shadow-sm">
+                <div key={idx} className="bg-[#F3F4F6] rounded-[16px] p-2.5 sm:p-5 flex flex-col items-center justify-center text-center shadow-sm min-h-[110px] sm:min-h-[140px]">
                   <span className="text-[24px] sm:text-[36px] mb-1 sm:mb-2">{item.emoji}</span>
-                  <p className={`text-[14px] sm:text-[24px] font-bold text-[#111827] leading-none mb-1 ${isNA ? 'text-slate-400 opacity-50' : ''}`}>
+                  <p className={`text-[13px] sm:text-[22px] font-bold text-[#111827] leading-none mb-1 ${isNA ? 'text-slate-400 opacity-50' : ''}`}>
                     {isNA ? 'N/A' : `${displayValue}${item.unit}`}
                   </p>
                   <p className="text-[10px] sm:text-[13px] text-[#9CA3AF] font-medium leading-tight">{item.label}</p>
@@ -256,7 +318,7 @@ const AnalysisReport = () => {
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                 {healthImpact.impactLabel || 'Analyzing daily impact...'}
               </p>
-              <p className="text-[32px] font-black text-slate-900 leading-tight">
+              <p className="text-[18px] sm:text-[20px] font-bold text-slate-900 leading-tight">
                 {healthImpact.impactValue || '—'}
               </p>
             </div>
@@ -275,7 +337,7 @@ const AnalysisReport = () => {
             <div className="space-y-3">
               {[
                 { label: report.input_method === 'image' ? 'Image scan data' : 'Manual input data', type: report.input_method === 'image' ? 'check' : 'warning' },
-                { label: ingredients.length > 0 ? `${ingredients.length} ingredients analyzed` : 'Ingredient data', type: ingredients.length > 0 ? 'check' : 'warning' },
+                { label: normalizedIngredients.length > 0 ? `${normalizedIngredients.length} ingredients analyzed` : 'Ingredient data', type: normalizedIngredients.length > 0 ? 'check' : 'warning' },
                 { label: 'AI evidence layer', type: 'check' },
                 { label: 'WHO/FSSAI cross-referenced', type: 'check' }
               ].map((item, idx) => (
@@ -297,22 +359,22 @@ const AnalysisReport = () => {
         <div className="bg-white rounded-3xl border border-slate-100 p-5 sm:p-8 shadow-sm space-y-6">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Personalised Advice</h2>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center py-2 border-b border-slate-50">
-              <span className="text-slate-500 font-medium italic">Safe Intake</span>
-              <span className="font-bold text-slate-800">{adviceCard.safeIntake || 'Analyzing...'}</span>
+          <div className="space-y-3">
+            <div className="grid grid-cols-12 items-center py-3 border-b border-slate-100 gap-2">
+              <span className="col-span-5 text-slate-500 font-medium">Safe Intake</span>
+              <span className="col-span-7 font-bold text-slate-800 text-right break-words">{adviceCard.safeIntake || 'Analyzing...'}</span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-slate-50">
-              <span className="text-slate-500 font-medium italic">Frequency</span>
-              <span className="font-bold text-slate-800">{adviceCard.frequency || 'Analyzing...'}</span>
+            <div className="grid grid-cols-12 items-center py-3 border-b border-slate-100 gap-2">
+              <span className="col-span-5 text-slate-500 font-medium">Frequency</span>
+              <span className="col-span-7 font-bold text-slate-800 text-right break-words">{adviceCard.frequency || 'Analyzing...'}</span>
             </div>
-            <div className="flex justify-between items-center py-2 text-sm sm:text-base">
-              <span className="text-slate-500 font-medium italic">Best Time</span>
-              <span className="font-bold text-slate-800">{adviceCard.bestTime || 'Analyzing...'}</span>
+            <div className="grid grid-cols-12 items-center py-3 gap-2">
+              <span className="col-span-5 text-slate-500 font-medium">Best Time</span>
+              <span className="col-span-7 font-bold text-slate-800 text-right break-words">{adviceCard.bestTime || 'Analyzing...'}</span>
             </div>
 
-            <div className="mt-6 p-4 bg-[#EBF5F3] rounded-xl border border-emerald-100/50">
-              <p className="text-[13px] font-medium text-emerald-800 leading-relaxed italic">
+            <div className="mt-5 p-4 bg-[#EBF5F3] rounded-xl border border-emerald-100/50">
+              <p className="text-[13px] font-medium text-emerald-800 leading-relaxed">
                 {adviceCard.consumptionGuideline || 'Calculating clinical guidelines...'}
               </p>
             </div>

@@ -54,11 +54,11 @@ const LandingPage = () => {
               Analyze ingredients against global health standards with clinical precision. Medo Veda gives you the definitive verdict on every bite.
             </p>
             <div className="animate-fade-in-up [animation-delay:800ms] opacity-0 flex flex-col sm:flex-row gap-3 md:gap-5 mb-12 md:mb-24" style={{ width: '100%', maxWidth: '500px' }}>
-              <Link to={user ? "/scan" : "/auth"} className="flex items-center justify-center space-x-3 bg-primary text-on-primary px-6 md:px-10 py-3.5 md:py-5 rounded-full font-bold text-sm md:text-lg hover:shadow-[0_8px_30px_rgb(0,81,68,0.3)] transition-all hover:-translate-y-1">
+              <Link to={user ? "/scan" : "/auth"} className="flex items-center justify-center space-x-3 bg-primary text-on-primary px-6 md:px-10 py-3.5 md:py-5 rounded-full font-bold text-sm md:text-lg hover:shadow-[0_8px_30px_rgb(0,81,68,0.3)] transition-all hover:-translate-y-1 min-h-[44px]">
                 <span className="material-symbols-outlined text-xl">qr_code_scanner</span>
                 <span>{user ? "Go to Scan Lab" : "Get Started"}</span>
               </Link>
-              <button className="flex items-center justify-center space-x-3 bg-white text-primary border border-primary/10 px-6 md:px-10 py-3.5 md:py-5 rounded-full font-bold text-sm md:text-lg hover:bg-emerald-50 transition-all">
+              <button className="flex items-center justify-center space-x-3 bg-white text-primary border border-primary/10 px-6 md:px-10 py-3.5 md:py-5 rounded-full font-bold text-sm md:text-lg hover:bg-emerald-50 transition-all min-h-[44px]">
                 <span>Explore Science</span>
               </button>
             </div>
@@ -331,7 +331,7 @@ const LandingPage = () => {
                 Trust Medo Veda for your daily nutritional verification.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4 md:gap-6 pt-4 md:pt-10">
-                <Link to="/scan" className="bg-white text-primary px-8 md:px-12 py-4 md:py-6 rounded-full font-black text-base md:text-xl hover:shadow-2xl transition-all active:scale-95">
+                <Link to="/scan" className="bg-white text-primary px-8 md:px-12 py-4 md:py-6 rounded-full font-black text-base md:text-xl hover:shadow-2xl transition-all active:scale-95 min-h-[44px] inline-flex items-center justify-center">
                   Launch Analysis Lab
                 </Link>
               </div>

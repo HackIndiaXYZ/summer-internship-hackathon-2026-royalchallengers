@@ -7,12 +7,18 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
 
   if (!user) {
-    // Redirect them to the /auth page, but save the current location they were
-    // trying to go to when they were redirected. This allows us to send them
-    // along to that page after they login, which is a nicer user experience
-    // than dropping them off on the home page.
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
+
+  // If user is authenticated but hasn't completed profile,
+  // redirect to profile-setup (unless they are already there)
+  if (!user.profileComplete && location.pathname !== '/profile-setup') {
+    return <Navigate to="/profile-setup" replace />;
+  }
+
+  // If profile is complete and they try to go back to profile-setup via route,
+  // we could let them edit (it's supported), or redirect them to dashboard.
+  // For now, let's allow them to access it for editing.
 
   return children;
 };

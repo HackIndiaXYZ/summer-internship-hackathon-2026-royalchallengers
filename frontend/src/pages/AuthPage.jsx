@@ -49,7 +49,7 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="bg-[#f2fcf9] text-[#141d1c] min-h-screen flex flex-col md:flex-row font-['Inter'] overflow-hidden">
+    <div className="bg-[#f2fcf9] text-[#141d1c] min-h-screen flex flex-col md:flex-row font-['Inter'] overflow-hidden pt-[10vh] md:pt-0">
       {/* Left Column: Clinical Hero & Trust Branding */}
       <section className="relative w-full md:w-1/2 min-h-[40vh] md:min-h-screen flex items-center justify-center p-8 md:p-16 overflow-hidden">
         {/* The Medo Veda Hero Image */}
@@ -114,7 +114,7 @@ const AuthPage = () => {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-md"
+          className="w-full max-w-md px-1"
         >
           <div className="mb-10 md:mb-14">
             <h2 className="text-3xl md:text-5xl font-black text-[#141d1c] tracking-tighter mb-4 leading-none text-center md:text-left">
@@ -144,7 +144,7 @@ const AuthPage = () => {
               <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                 <label className="block text-[10px] font-black text-[#141d1c] uppercase tracking-widest mb-2 ml-1" htmlFor="name">Full Clinical Identity</label>
                 <input
-                  className="w-full px-6 py-5 bg-white border border-[#005144]/10 rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
+                  className="w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-white border border-[#005144]/10 rounded-[1.25rem] sm:rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
                   id="name"
                   type="text"
                   placeholder="e.g. Dr. Julian Veda"
@@ -158,7 +158,7 @@ const AuthPage = () => {
             <motion.div layout>
               <label className="block text-[10px] font-black text-[#141d1c] uppercase tracking-widest mb-2 ml-1" htmlFor="email">Registry Email Endpoint</label>
               <input
-                className="w-full px-6 py-5 bg-white border border-[#005144]/10 rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
+                className="w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-white border border-[#005144]/10 rounded-[1.25rem] sm:rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
                 id="email"
                 type="email"
                 placeholder="protocol@medoveda.com"
@@ -175,7 +175,7 @@ const AuthPage = () => {
               </div>
               <div className="relative group">
                 <input
-                  className="w-full px-6 py-5 bg-white border border-[#005144]/10 rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
+                  className="w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-white border border-[#005144]/10 rounded-[1.25rem] sm:rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••••••"
@@ -186,7 +186,7 @@ const AuthPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-[#303a38]/30 hover:text-[#005144] transition-all"
+                  className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 text-[#303a38]/30 hover:text-[#005144] transition-all"
                 >
                   <span className="material-symbols-outlined text-xl">
                     {showPassword ? "visibility_off" : "visibility"}

@@ -21,12 +21,12 @@ const Modal = ({ isOpen, onClose, title, children, footer }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-[#005144]/10"
+            className="relative w-[92vw] max-w-lg bg-white rounded-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-[#005144]/10"
           >
             {/* Header */}
-            <div className="px-8 py-6 border-b border-[#005144]/5 flex items-center justify-between">
+            <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 border-b border-[#005144]/5 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-black text-[#005144] tracking-tighter uppercase">{title}</h3>
+                <h3 className="text-lg sm:text-xl font-black text-[#005144] tracking-tighter uppercase">{title}</h3>
               </div>
               <button
                 onClick={onClose}
@@ -37,13 +37,13 @@ const Modal = ({ isOpen, onClose, title, children, footer }) => {
             </div>
 
             {/* Body */}
-            <div className="px-8 py-10">
+            <div className="px-4 sm:px-6 md:px-8 py-5 sm:py-8 md:py-10">
               {children}
             </div>
 
             {/* Footer */}
             {footer && (
-              <div className="px-8 py-6 bg-[#f2fcf9] border-t border-[#005144]/5">
+              <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 bg-[#f2fcf9] border-t border-[#005144]/5">
                 {footer}
               </div>
             )}

@@ -65,6 +65,13 @@
   *, *::before, *::after {
     box-sizing: border-box;
   }
+
+  :root {
+    --mv-text-xs: clamp(0.7rem, 0.66rem + 0.2vw, 0.78rem);
+    --mv-text-sm: clamp(0.82rem, 0.78rem + 0.28vw, 0.92rem);
+    --mv-text-base: clamp(0.95rem, 0.9rem + 0.35vw, 1.05rem);
+    --mv-text-lg: clamp(1.05rem, 0.96rem + 0.6vw, 1.25rem);
+  }
   
   html {
     overflow-x: clip;
@@ -72,6 +79,8 @@
     max-width: 100%;
     overscroll-behavior-x: none;
     position: relative;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -82,6 +91,28 @@
     max-width: 100%;
     overscroll-behavior-x: none;
     position: relative;
+    font-size: var(--mv-text-base);
+  }
+
+  p {
+    font-size: var(--mv-text-sm);
+  }
+
+  h1, h2, h3, h4 {
+    line-height: 1.15;
+  }
+
+  img, svg, video, canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button, [role="button"], input, select, textarea {
+    min-height: 44px;
+  }
+
+  input, select, textarea {
+    font-size: 16px;
   }
 
   #root {

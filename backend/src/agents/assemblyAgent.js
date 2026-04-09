@@ -23,7 +23,7 @@ function assembleReport(data) {
   // Final Schema Synthesis — Targeting AnalysisReport.jsx
   return {
     productName: isNA ? "N/A" : (product.productName || "Product Name Not Detected"),
-    brand: isNA ? "N/A" : (product.brand || "—"),
+    brand: isNA ? "N/A" : (product.brand || null),
     imageUrl: product.imageUrl || null,
     confidenceScore: isNA ? 0 : (() => {
       let score = verdict?.confidenceScore || 75;
