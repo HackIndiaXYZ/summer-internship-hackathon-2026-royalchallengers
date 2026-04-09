@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { toCanvas } from 'html-to-image';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config';
 
@@ -156,38 +156,39 @@ const AnalysisReport = () => {
     return 'bg-red-500';
   };
 
+  const renderReportCanvas = async (targetNode) => {
+    try {
+      return await toCanvas(targetNode, {
+        pixelRatio: 2,
+        cacheBust: true,
+        skipAutoScale: false,
+        backgroundColor: '#F8FAFB',
+        style: {
+          margin: '0',
+          transform: 'none'
+        }
+      });
+    } catch (err) {
+      throw err;
+    }
+  };
+
   const handleDownloadPdf = async () => {
     if (!reportRef.current) return;
 
     try {
       setDownloadingPdf(true);
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#F8FAFB',
-        scrollY: -window.scrollY
-      });
+      const canvas = await renderReportCanvas(reportRef.current);
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const pdf = new jsPDF({
+        orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+        compress: true
+      });
 
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-      }
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
 
       const safeName = (productName || 'report').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
       pdf.save(`medo-veda-${safeName}-report.pdf`);
@@ -259,22 +260,27 @@ const AnalysisReport = () => {
           <div className="p-6 text-center border-b border-slate-50">
             <h2 className="text-lg font-bold text-slate-700 tracking-tight">Scientific Ingredient Analysis</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div>
+            <table className="w-full table-fixed text-left">
+              <colgroup>
+                <col className="w-[30%] sm:w-[28%]" />
+                <col className="w-[46%] sm:w-[52%]" />
+                <col className="w-[24%] sm:w-[20%]" />
+              </colgroup>
               <thead className="bg-slate-50/50 border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase tracking-widest">Ingredient</th>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase tracking-widest text-left">Standard Guideline (WHO/FSAI)</th>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase tracking-widest text-right">Status</th>
+                  <th className="px-4 sm:px-6 py-4 text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-widest">Ingredient</th>
+                  <th className="px-4 sm:px-6 py-4 text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-widest text-left">Standard Guideline (WHO/FSAI)</th>
+                  <th className="px-4 sm:px-6 py-4 text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-widest text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {(showAllIngredients ? normalizedIngredients : normalizedIngredients.slice(0, 4)).map((ing, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-slate-800 text-[13px] sm:text-base">{ing.name}</td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-left text-slate-500 text-xs sm:text-sm font-medium">{ing.standardGuideline}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 font-bold text-slate-800 text-[12px] sm:text-base whitespace-normal break-words leading-snug">{ing.name}</td>
+                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-left text-slate-500 text-[11px] sm:text-sm font-medium whitespace-normal break-words leading-snug">{ing.standardGuideline}</td>
                     <td className="px-4 sm:px-6 py-3 sm:py-4 text-right">
-                      <div className="flex items-center justify-end gap-1 sm:gap-1.5 font-bold text-[11px] sm:text-sm">
+                      <div className="flex items-center justify-end gap-1 sm:gap-1.5 font-bold text-[10px] sm:text-sm whitespace-normal break-words">
                         <span className={`material-symbols-outlined text-[14px] sm:text-[18px] ${
                           ing.status === 'Acceptable' ? 'text-emerald-500' : 
                           ing.status === 'Limit' || ing.status === 'Caution' ? 'text-amber-500' : 

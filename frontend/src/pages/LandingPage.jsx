@@ -72,36 +72,6 @@ const LandingPage = () => {
                   src="/hero.png"
                 />
               </div>
-
-              {/* Floating Elements - HIDDEN on mobile to prevent overflow */}
-              <div className="absolute -top-12 -left-12 bg-white/95 backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-primary/5 hidden lg:block max-w-[240px] text-left">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Health Index</span>
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                </div>
-                <div className="text-4xl font-black text-primary tracking-tighter mb-1">94<span className="text-sm opacity-40">/100</span></div>
-                <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full inline-block">Safe Grade</p>
-              </div>
-
-              <div className="absolute -bottom-8 -right-10 bg-primary p-6 rounded-3xl shadow-2xl hidden lg:block max-w-[200px] text-left">
-                <div className="flex items-center space-x-3 mb-2 text-on-primary">
-                  <span className="material-symbols-outlined text-2xl">biotech</span>
-                  <span className="text-xs font-bold uppercase tracking-widest leading-none">Verified</span>
-                </div>
-                <p className="text-xs text-on-primary/80 leading-relaxed font-medium">Synced with WHO guidelines.</p>
-              </div>
-            </div>
-
-            {/* Mobile-only trust badges */}
-            <div className="flex gap-3 mt-8 lg:hidden" style={{ width: '100%', justifyContent: 'center' }}>
-              <div className="bg-white px-4 py-3 rounded-2xl shadow-md border border-primary/5 text-center">
-                <div className="text-2xl font-black text-primary">94<span className="text-xs opacity-40">/100</span></div>
-                <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Safe Grade</p>
-              </div>
-              <div className="bg-primary px-4 py-3 rounded-2xl shadow-md text-center">
-                <span className="material-symbols-outlined text-white text-xl">biotech</span>
-                <p className="text-[9px] font-bold text-white/80 uppercase tracking-wider">WHO Verified</p>
-              </div>
             </div>
 
             {/* Partners/Trust */}
