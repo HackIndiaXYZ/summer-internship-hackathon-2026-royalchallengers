@@ -35,7 +35,7 @@ Apply the user's health profile when classifying. The same ingredient can be "Ca
 For each ingredient, provide:
 - name: the exact ingredient name from the list
 - status: one of "Acceptable", "Limit", "Caution", "Harmful"
-- standardGuideline: a specific WHO, FSSAI, or EFSA guideline for this ingredient, or "None" if no specific guideline exists. Never fabricate a guideline. Format: "[Authority]: [specific clinical reason in 15 words or fewer]"
+- standardGuideline: if a verified WHO/FSSAI/EFSA rule exists, use "[Authority]: ...". If no verified authority rule exists, return either "None" or "[General Caution]: ...". Do NOT use WHO/FSSAI/EFSA labels for unverified guidance.
 - riskLevel: "low", "medium", or "high"
 - concern: one sentence about why this ingredient matters for this user's health profile
 

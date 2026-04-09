@@ -30,6 +30,7 @@ async function analyzePersonalization(ingredientsAnalysis, persona, options = {}
     3. Write the impactValue as a realistic quantitative stat (e.g., "180% RDA", "3x sugar limit", "2.5x Safe Limit"). Base it on actual ingredient quantities if known.
     4. Write a detailed impact description specific to this product.
     5. Write 2-3 specific warnings relevant to THIS user's health conditions.
+    6. Write one short-term effect line (days to weeks) and one long-term effect line (months to years) for regular intake.
     
     CRITICAL: The impactLabel and impactValue MUST reflect the actual dominant ingredients of this product. Do NOT default to "Sodium Intake Increase: 150%" unless sodium is genuinely the main concern.
     
@@ -44,6 +45,8 @@ async function analyzePersonalization(ingredientsAnalysis, persona, options = {}
         "impactLabel": "string — based on dominant ingredient concern",
         "impactValue": "string — realistic quantitative stat for this product",
         "impact": "string — detailed reasoning specific to this product",
+        "shortTermEffect": "string — one concise near-term impact line",
+        "longTermEffect": "string — one concise long-term impact line",
         "warnings": ["string — precise bullet points for this user persona"]
       },
       "rescoredIngredients": [

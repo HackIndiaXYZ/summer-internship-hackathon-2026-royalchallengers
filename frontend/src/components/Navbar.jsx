@@ -24,7 +24,7 @@ const Navbar = ({ onLogoClick }) => {
   return (
     <>
       <nav className="fixed top-0 w-full z-50 bg-[#f2fcf9]/80 backdrop-blur-md border-b border-[#005144]/10">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+        <div className="max-w-[1400px] mx-auto px-2 sm:px-6">
           <div className="flex items-center h-20 sm:h-24 relative">
             {/* Left Section: Logo / Toggle */}
             <div className="flex items-center lg:w-[280px] flex-1 lg:flex-none">
@@ -56,21 +56,17 @@ const Navbar = ({ onLogoClick }) => {
             </div>
 
             {/* Right Section: Auth/Profile */}
-            <div className="flex items-center justify-end lg:w-[280px] gap-2 sm:gap-4">
+            <div className="flex items-center justify-end lg:w-[280px] gap-2 sm:gap-4 pr-4">
               {user ? (
                 <div className="relative">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center gap-2 sm:gap-3 bg-white p-1.5 pr-3 sm:pr-4 rounded-xl sm:rounded-2xl border border-[#005144]/10 shadow-sm hover:shadow-md transition-all min-h-[44px]"
+                    className="flex items-center bg-white p-1.5 rounded-xl sm:rounded-2xl border border-[#005144]/10 shadow-sm hover:shadow-md transition-all min-h-[44px]"
                   >
                     <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-[#005144] flex items-center justify-center flex-shrink-0">
                       <span className="material-symbols-outlined text-white text-lg sm:text-xl">person</span>
-                    </div>
-                    <div className="text-left hidden sm:block">
-                      <p className="text-sm font-bold text-[#141d1c] leading-tight">{user.name}</p>
-                      <p className="text-[10px] text-[#005144] font-medium uppercase tracking-wider">Member</p>
                     </div>
                   </motion.button>
 

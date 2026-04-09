@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import toast from 'react-hot-toast';
 import { API_URL } from '../config';
 
 /**
@@ -15,6 +18,8 @@ const AnalysisReport = () => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const reportRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -102,9 +107,23 @@ const AnalysisReport = () => {
     nutrition: rawNutrition = {}
   } = report;
 
+  const normalizeGuidelineText = (value) => {
+    const text = String(value || '').trim();
+    if (!text) {
+      return '[General Caution]: No verified numeric guideline available; consume in moderation.';
+    }
+
+    const lowered = text.toLowerCase();
+    if (['none', 'n/a', 'na', 'null', '-', 'not available'].includes(lowered)) {
+      return '[General Caution]: No verified numeric guideline available; consume in moderation.';
+    }
+
+    return text;
+  };
+
   const normalizedIngredients = (ingredients || []).map((ing) => ({
     name: ing?.name || 'Unknown Ingredient',
-    standardGuideline: ing?.standardGuideline || 'WHO/FSSAI: Refer to product-specific safe intake and additive limits.',
+    standardGuideline: normalizeGuidelineText(ing?.standardGuideline),
     status: ing?.status || 'Caution'
   }));
 
@@ -137,9 +156,52 @@ const AnalysisReport = () => {
     return 'bg-red-500';
   };
 
+  const handleDownloadPdf = async () => {
+    if (!reportRef.current) return;
+
+    try {
+      setDownloadingPdf(true);
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#F8FAFB',
+        scrollY: -window.scrollY
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      const safeName = (productName || 'report').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      pdf.save(`medo-veda-${safeName}-report.pdf`);
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+      toast.error(`Failed to generate PDF${err?.message ? `: ${err.message}` : ''}`);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8FAFB] pb-24 font-sans text-slate-800">
-      <div className="max-w-[700px] mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-[#F8FAFB] pt-[10vh] pb-24 font-sans text-slate-800">
+      <div ref={reportRef} className="max-w-[700px] mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-4 sm:space-y-6">
 
         {/* SECTION 1: Product Header Card (Horizontal Mobile Optimized) */}
         <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 flex flex-row gap-4 sm:gap-6 items-start relative overflow-hidden shadow-sm">
@@ -322,14 +384,16 @@ const AnalysisReport = () => {
                 {healthImpact.impactValue || '—'}
               </p>
             </div>
-            <ul className="space-y-2 border-t border-slate-50 pt-4">
-              {(healthImpact.warnings || []).slice(0, 1).map((w, idx) => (
-                <li key={idx} className="flex gap-2 text-sm text-slate-600 font-medium italic">
-                  <span className="text-slate-900 font-black">•</span>
-                  {w}
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-3 border-t border-slate-50 pt-4">
+              <div className="bg-[#F8FAFB] border border-slate-100 rounded-xl p-3">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Short-Term Effect</p>
+                <p className="text-sm text-slate-700 font-semibold leading-relaxed">{healthImpact.shortTermEffect || 'Short-term effect varies by quantity and user profile.'}</p>
+              </div>
+              <div className="bg-[#F8FAFB] border border-slate-100 rounded-xl p-3">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Long-Term Effect</p>
+                <p className="text-sm text-slate-700 font-semibold leading-relaxed">{healthImpact.longTermEffect || 'Long-term frequent intake may increase cumulative health burden.'}</p>
+              </div>
+            </div>
           </div>
 
           {/* Card 4: Data Sources & Final Verdict */}
@@ -360,17 +424,17 @@ const AnalysisReport = () => {
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Personalised Advice</h2>
 
           <div className="space-y-3">
-            <div className="grid grid-cols-12 items-center py-3 border-b border-slate-100 gap-2">
-              <span className="col-span-5 text-slate-500 font-medium">Safe Intake</span>
-              <span className="col-span-7 font-bold text-slate-800 text-right break-words">{adviceCard.safeIntake || 'Analyzing...'}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-12 items-start py-3 border-b border-slate-100 gap-1 sm:gap-2">
+              <span className="sm:col-span-5 text-slate-500 font-medium text-left">Safe Intake</span>
+              <span className="sm:col-span-7 font-bold text-slate-800 text-left break-words">{adviceCard.safeIntake || 'Analyzing...'}</span>
             </div>
-            <div className="grid grid-cols-12 items-center py-3 border-b border-slate-100 gap-2">
-              <span className="col-span-5 text-slate-500 font-medium">Frequency</span>
-              <span className="col-span-7 font-bold text-slate-800 text-right break-words">{adviceCard.frequency || 'Analyzing...'}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-12 items-start py-3 border-b border-slate-100 gap-1 sm:gap-2">
+              <span className="sm:col-span-5 text-slate-500 font-medium text-left">Frequency</span>
+              <span className="sm:col-span-7 font-bold text-slate-800 text-left break-words">{adviceCard.frequency || 'Analyzing...'}</span>
             </div>
-            <div className="grid grid-cols-12 items-center py-3 gap-2">
-              <span className="col-span-5 text-slate-500 font-medium">Best Time</span>
-              <span className="col-span-7 font-bold text-slate-800 text-right break-words">{adviceCard.bestTime || 'Analyzing...'}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-12 items-start py-3 gap-1 sm:gap-2">
+              <span className="sm:col-span-5 text-slate-500 font-medium text-left">Best Time</span>
+              <span className="sm:col-span-7 font-bold text-slate-800 text-left break-words">{adviceCard.bestTime || 'Analyzing...'}</span>
             </div>
 
             <div className="mt-5 p-4 bg-[#EBF5F3] rounded-xl border border-emerald-100/50">
@@ -404,19 +468,15 @@ const AnalysisReport = () => {
           </div>
         </div>
 
-        {/* SECTION 5: Footer Actions (Symmetric Layout) */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 pb-20">
+        {/* SECTION 5: Report Export */}
+        <div className="pt-4 pb-20">
           <button
-            onClick={() => navigate('/')}
-            className="flex-1 py-4 bg-[#006B5B] text-white rounded-xl font-bold shadow-lg shadow-teal-900/10 active:scale-95 transition-all text-[14px] sm:text-[15px]"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="w-full py-4 bg-[#006B5B] text-white rounded-xl font-bold shadow-lg shadow-teal-900/10 active:scale-95 transition-all text-[14px] sm:text-[15px] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Scan Another Product
-          </button>
-          <button
-            onClick={() => navigate('/history')}
-            className="flex-1 py-4 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 active:scale-95 transition-all text-[14px] sm:text-[15px]"
-          >
-            History
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            {downloadingPdf ? 'Preparing PDF...' : 'Download PDF Report'}
           </button>
         </div>
 

@@ -67,6 +67,12 @@ function assembleReport(data) {
       dailyConsumptionImpact: isNA ? "N/A" : (persona?.dailyConsumption?.impact || "Clinical profile pending."),
       impactLabel: isNA ? "N/A" : (persona?.dailyConsumption?.impactLabel || "Daily Impact:"),
       impactValue: isNA ? "N/A" : (persona?.dailyConsumption?.impactValue || "Moderate"),
+      shortTermEffect: isNA
+        ? "N/A"
+        : (persona?.dailyConsumption?.shortTermEffect || persona?.dailyConsumption?.warnings?.[0] || "Short-term effect depends on portion size and existing health conditions."),
+      longTermEffect: isNA
+        ? "N/A"
+        : (persona?.dailyConsumption?.longTermEffect || persona?.dailyConsumption?.warnings?.[1] || "Long-term overuse may elevate cumulative metabolic and cardiovascular risk."),
       personalizedRiskScore: isNA ? 0 : (verdict?.confidenceScore || 50),
       verdictReasoning: isNA ? "Specimen not suitable for consumption." : (persona?.dailyConsumption?.headline || "Based on clinical ingredient audit."),
       warnings: isNA ? ["Non-edible specimen"] : (persona?.dailyConsumption?.warnings || ["Standard moderation advised."])

@@ -7,7 +7,8 @@ const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +34,16 @@ const AuthPage = () => {
       if (isLogin) {
         success = await login(email, password);
       } else {
-        success = await register(name, email, password);
+        const trimmedFirstName = firstName.trim();
+        const trimmedLastName = lastName.trim();
+        if (trimmedFirstName === '' || trimmedLastName === '') {
+          setError('First and last name are required.');
+          setIsLoading(false);
+          return;
+        }
+
+        const fullName = `${trimmedFirstName} ${trimmedLastName}`;
+        success = await register(fullName, email, password);
       }
 
       if (success) {
@@ -49,7 +59,122 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="bg-[#f2fcf9] text-[#141d1c] min-h-screen flex flex-col md:flex-row font-['Inter'] overflow-hidden pt-[10vh] md:pt-0">
+    <>
+      {/* Mobile Auth UI */}
+      <div className="md:hidden h-[calc(100dvh-5rem)] mt-20 px-4 py-4 flex items-center justify-center bg-[#f2fcf9] relative overflow-hidden">
+        <div className="relative w-full max-w-md">
+          <div className="mb-8 text-center">
+            <h1 className="text-[#141d1c] text-[23px] font-bold tracking-tight">
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </h1>
+            <p className="text-[#3e4946] text-xs mt-1 font-medium">
+              {isLogin ? 'Secure access to your account' : 'Know what you eat'}
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-700 text-sm font-semibold">{error}</p>
+            </div>
+          )}
+
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {!isLogin && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#141d1c] mb-1.5" htmlFor="mobile-first-name">First Name</label>
+                  <input
+                    className="w-full px-4 py-3 bg-white border-2 border-[#005144]/35 rounded-xl text-[#141d1c] placeholder:text-[#3e4946]/45 focus:outline-none focus:ring-2 focus:ring-[#005144]/20 focus:border-[#005144] font-semibold"
+                    id="mobile-first-name"
+                    type="text"
+                    placeholder="First"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required={!isLogin}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#141d1c] mb-1.5" htmlFor="mobile-last-name">Last Name</label>
+                  <input
+                    className="w-full px-4 py-3 bg-white border-2 border-[#005144]/35 rounded-xl text-[#141d1c] placeholder:text-[#3e4946]/45 focus:outline-none focus:ring-2 focus:ring-[#005144]/20 focus:border-[#005144] font-semibold"
+                    id="mobile-last-name"
+                    type="text"
+                    placeholder="Last"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required={!isLogin}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-[#141d1c] mb-1.5" htmlFor="mobile-email">Email</label>
+              <input
+                className="w-full px-4 py-3 bg-white border-2 border-[#005144]/35 rounded-xl text-[#141d1c] placeholder:text-[#3e4946]/45 focus:outline-none focus:ring-2 focus:ring-[#005144]/20 focus:border-[#005144] font-semibold"
+                id="mobile-email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#141d1c] mb-1.5" htmlFor="mobile-password">Password</label>
+              <div className="relative">
+                <input
+                  className="w-full px-4 py-3 pr-11 bg-white border-2 border-[#005144]/35 rounded-xl text-[#141d1c] placeholder:text-[#3e4946]/45 focus:outline-none focus:ring-2 focus:ring-[#005144]/20 focus:border-[#005144] font-semibold"
+                  id="mobile-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#005144]/70"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <button
+              disabled={isLoading}
+              className="w-full py-3.5 bg-[#005144] text-white hover:bg-[#003d33] disabled:opacity-50 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 border-2 border-[#005144]"
+              type="submit"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Please wait...</span>
+                </>
+              ) : (
+                <span>{isLogin ? 'Login' : 'Sign Up'}</span>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 text-left">
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm text-[#005144] font-semibold underline underline-offset-4"
+            >
+              {isLogin ? 'New user? Create account' : 'Already have an account? Sign in'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Auth UI */}
+      <div className="hidden md:flex bg-[#f2fcf9] text-[#141d1c] min-h-screen flex-col md:flex-row font-['Inter'] overflow-hidden pt-0">
       {/* Left Column: Clinical Hero & Trust Branding */}
       <section className="relative w-full md:w-1/2 min-h-[40vh] md:min-h-screen flex items-center justify-center p-8 md:p-16 overflow-hidden">
         {/* The Medo Veda Hero Image */}
@@ -142,16 +267,32 @@ const AuthPage = () => {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {!isLogin && (
               <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                <label className="block text-[10px] font-black text-[#141d1c] uppercase tracking-widest mb-2 ml-1" htmlFor="name">Full Clinical Identity</label>
-                <input
-                  className="w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-white border border-[#005144]/10 rounded-[1.25rem] sm:rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
-                  id="name"
-                  type="text"
-                  placeholder="e.g. Dr. Julian Veda"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required={!isLogin}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-[#141d1c] uppercase tracking-widest mb-2 ml-1" htmlFor="first-name">First Name</label>
+                    <input
+                      className="w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-white border border-[#005144]/10 rounded-[1.25rem] sm:rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
+                      id="first-name"
+                      type="text"
+                      placeholder="First name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required={!isLogin}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-[#141d1c] uppercase tracking-widest mb-2 ml-1" htmlFor="last-name">Last Name</label>
+                    <input
+                      className="w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-white border border-[#005144]/10 rounded-[1.25rem] sm:rounded-[1.5rem] text-[#141d1c] focus:ring-4 focus:ring-[#005144]/5 focus:border-[#005144] transition-all placeholder:text-[#303a38]/20 shadow-sm font-medium"
+                      id="last-name"
+                      type="text"
+                      placeholder="Last name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required={!isLogin}
+                    />
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -235,7 +376,9 @@ const AuthPage = () => {
           <span className="material-symbols-outlined text-sm text-[#005144]">security</span>
         </div>
       </section>
-    </div>
+      </div>
+
+    </>
 
   );
 };

@@ -13,6 +13,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savedProfile, setSavedProfile] = useState(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   // Step 1: Basic Details
   const [basicInfo, setBasicInfo] = useState({
@@ -138,6 +139,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
       // Update user context with fresh profile data
       const refreshed = await refreshProfile();
       setSavedProfile(refreshed || profilePayload);
+      setIsEditingProfile(false);
 
       toast.success('Clinical parameters updated successfully.', {
         duration: 3500,
@@ -181,10 +183,12 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-[#141d1c] tracking-tight mb-3">
-            Complete Your Profile
+            {savedProfile && !isEditingProfile ? 'Health Profile' : 'Complete Your Profile'}
           </h1>
           <p className="text-[#3e4946] text-sm sm:text-base max-w-md mx-auto leading-relaxed">
-            Tell us about yourself. This takes 60 seconds and makes every analysis more relevant to you.
+            {savedProfile && !isEditingProfile
+              ? 'Your profile is saved. Use edit to update your health context anytime.'
+              : 'Tell us about yourself. This takes 60 seconds and makes every analysis more relevant to you.'}
           </p>
         </div>
 
@@ -250,11 +254,19 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
                   </div>
                 </div>
               </div>
+
+              <button
+                onClick={() => setIsEditingProfile(true)}
+                className="w-full mt-1 bg-[#005144] text-white px-5 py-3.5 rounded-xl font-bold shadow-lg shadow-[#005144]/20 hover:shadow-[#005144]/30 active:scale-[0.99] transition-all"
+              >
+                Edit Health Profile
+              </button>
             </div>
           </section>
         )}
 
         {/* Progress Stepper */}
+        {(!savedProfile || isEditingProfile) && (
         <div className="flex items-center justify-center mb-12">
           {stepLabels.map((label, idx) => {
             const stepNum = idx + 1;
@@ -284,8 +296,10 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
             );
           })}
         </div>
+        )}
 
         {/* Step Content */}
+        {(!savedProfile || isEditingProfile) && (
         <div className={isModal ? "" : "bg-white rounded-3xl shadow-[0_2px_20px_rgba(0,81,68,0.08)] overflow-hidden"}>
           <AnimatePresence mode="wait">
             {/* ═══════════════════ STEP 1: Basic Details ═══════════════════ */}
@@ -538,6 +552,7 @@ const ProfileSetup = ({ isModal = false, onComplete }) => {
             )}
           </AnimatePresence>
         </div>
+        )}
 
         {/* Security Footer */}
         <div className="flex items-center justify-center gap-4 mt-8 text-[10px] font-bold text-[#3e4946]/30 uppercase tracking-widest">

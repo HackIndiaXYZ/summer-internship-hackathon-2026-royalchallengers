@@ -24,6 +24,7 @@ function App() {
   // Pages that should show the sidebar
   const internalPages = ['/dashboard', '/scan', '/history', '/profile-setup', '/analysis'];
   const showSidebar = internalPages.some(path => location.pathname.startsWith(path));
+  const isAuthPage = location.pathname === '/auth';
   const hideMobileNav = location.pathname === '/auth' || location.pathname.startsWith('/scan/loading');
 
   // Auto-close on small screens
@@ -47,7 +48,7 @@ function App() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface selection:bg-primary/10 selection:text-primary" style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}>
+    <div className="full-mobile-height bg-surface text-on-surface selection:bg-primary/10 selection:text-primary" style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}>
       <Navbar
         onLogoClick={() => setIsSidebarOpen(!isSidebarOpen)}
       />
@@ -65,10 +66,10 @@ function App() {
           className={`flex-1 transition-all duration-300 min-w-0 ${showSidebar
             ? `px-4 sm:px-6 md:px-8 ${isSidebarOpen ? 'lg:pl-[280px]' : 'lg:pl-[88px]'}`
             : ''
-            } pb-28 lg:pb-0`}
+            } ${hideMobileNav ? 'pb-0' : 'mobile-nav-safe-padding'} lg:pb-0`}
           style={{ width: '100%', maxWidth: '100%', position: 'relative', overscrollBehaviorX: 'none' }}
         >
-          <div className="w-full max-w-full min-h-[calc(100vh-80px)] pt-4 sm:pt-3">
+          <div className={`w-full max-w-full min-h-[calc(100vh-80px)] ${isAuthPage ? 'pt-0' : 'pt-4 sm:pt-3'}`}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<AuthPage />} />

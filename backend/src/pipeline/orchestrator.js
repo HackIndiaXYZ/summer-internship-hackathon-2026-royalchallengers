@@ -12,6 +12,7 @@ const { findAlternatives } = require('../agents/alternativesAgent');
 const { generateVerdict } = require('../agents/verdictAgent');
 const { assembleReport } = require('../agents/assemblyAgent');
 const { researchProductIngredients } = require('../agents/ingredientGuessAgent');
+const { enhanceIngredientGuidelines } = require('../services/guidelineWebSearch');
 
 function buildFallbackIngredientRows(ingredientText = '') {
   const tokens = String(ingredientText || '')
@@ -24,6 +25,29 @@ function buildFallbackIngredientRows(ingredientText = '') {
     name,
     standardGuideline: 'WHO/FSSAI: Verify additive and quantity against product label and daily intake limits.',
     status: 'Caution'
+  }));
+}
+
+function sanitizeGuidelineText(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return '[General Caution]: No verified numeric guideline available; use moderation and monitor intake.';
+  }
+
+  const lowered = text.toLowerCase();
+  if (['none', 'n/a', 'na', 'null', '-', 'not available'].includes(lowered)) {
+    return '[General Caution]: No verified numeric guideline available; use moderation and monitor intake.';
+  }
+
+  return text;
+}
+
+function sanitizeIngredientRows(rows = []) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    ...row,
+    name: row?.name || 'Unknown Ingredient',
+    standardGuideline: sanitizeGuidelineText(row?.standardGuideline),
+    status: row?.status || 'Caution'
   }));
 }
 
@@ -169,6 +193,17 @@ async function runAnalysisPipeline(inputData, userProfile, scanId = null) {
         if (finalIngredients.length < 2 && researchData.guessed_ingredients) {
           finalIngredients = buildFallbackIngredientRows(researchData.guessed_ingredients);
         }
+      }
+
+      finalIngredients = sanitizeIngredientRows(finalIngredients);
+      const enrichedIngredients = await safeAgentCall(
+        () => enhanceIngredientGuidelines(finalIngredients),
+        'GuidelineWebSearch',
+        finalIngredients,
+        12000
+      );
+      if (Array.isArray(enrichedIngredients) && enrichedIngredients.length > 0) {
+        finalIngredients = enrichedIngredients;
       }
 
       // ══════════════════════════════════════════════════════════════
