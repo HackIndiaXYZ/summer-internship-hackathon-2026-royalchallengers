@@ -9,6 +9,46 @@ const HistoryPage = () => {
   const { user } = useAuth();
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const normalizeVerdict = (scan) => {
+    const rawVerdict = (scan?.overall_verdict || scan?.analysis_result?.overallVerdict || '')
+      .toString()
+      .trim()
+      .toLowerCase();
+
+    if (['safe', 'acceptable', 'low risk', 'low_risk'].includes(rawVerdict)) return 'safe';
+    if (['limit', 'caution', 'moderate', 'moderate risk', 'moderate_risk'].includes(rawVerdict)) return 'limit';
+    if (['at risk', 'at_risk', 'risk', 'high risk', 'high_risk', 'harmful', 'avoid', 'unsafe'].includes(rawVerdict)) return 'at-risk';
+    return rawVerdict || 'unknown';
+  };
+
+  const getFilterCount = (filterKey) => {
+    if (filterKey === 'all') return scans.length;
+    return scans.filter((scan) => normalizeVerdict(scan) === filterKey).length;
+  };
+
+  const filteredScans = scans.filter((scan) => {
+    const normalizedVerdict = normalizeVerdict(scan);
+    const searchValue = searchTerm.trim().toLowerCase();
+
+    const matchesFilter = activeFilter === 'all' || normalizedVerdict === activeFilter;
+    const ingredientText = (scan.analysis_result?.ingredients || [])
+      .map((ingredient) => ingredient?.name || '')
+      .join(' ')
+      .toLowerCase();
+    const summaryText = (scan.analysis_result?.healthImpact?.personalizedSummary || '').toLowerCase();
+    const productText = (scan.product_name || '').toLowerCase();
+
+    const matchesSearch =
+      !searchValue ||
+      productText.includes(searchValue) ||
+      ingredientText.includes(searchValue) ||
+      summaryText.includes(searchValue);
+
+    return matchesFilter && matchesSearch;
+  });
 
   useEffect(() => {
     if (user) {
@@ -103,20 +143,30 @@ const HistoryPage = () => {
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
             <input
               className="w-full pl-12 pr-4 py-3 bg-white border-none rounded-2xl focus:ring-2 focus:ring-primary shadow-sm text-sm outline-none"
-              placeholder="Search products or ingredients..."
+              placeholder="Search reports by product or ingredient..."
               type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar">
-            <button className="bg-primary text-on-primary px-6 py-2 rounded-full text-xs font-bold whitespace-nowrap active:scale-95 transition-transform">
-              All Results
-            </button>
-            <button className="bg-white text-on-surface-variant px-6 py-2 rounded-full text-xs font-bold hover:bg-emerald-50 transition-all border border-emerald-900/5 whitespace-nowrap">
-              Lab Safe
-            </button>
-            <button className="bg-white text-on-surface-variant px-6 py-2 rounded-full text-xs font-bold hover:bg-emerald-50 transition-all border border-emerald-900/5 whitespace-nowrap">
-              High Risk
-            </button>
+            {[
+              { key: 'all', label: 'All Results' },
+              { key: 'safe', label: 'Safe' },
+              { key: 'limit', label: 'Limit' },
+              { key: 'at-risk', label: 'At Risk' }
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                onClick={() => setActiveFilter(filter.key)}
+                className={`${activeFilter === filter.key
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-white text-on-surface-variant hover:bg-emerald-50 border border-emerald-900/5'
+                  } px-6 py-2 rounded-full text-xs font-bold whitespace-nowrap active:scale-95 transition-all`}
+              >
+                {filter.label} ({getFilterCount(filter.key)})
+              </button>
+            ))}
           </div>
         </div>
 
@@ -127,68 +177,87 @@ const HistoryPage = () => {
             <p className="text-xs font-bold uppercase tracking-widest text-[#005144]/60">Syncing Clinical Records...</p>
           </div>
         ) : scans.length > 0 ? (
+          filteredScans.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
-            {scans.map((scan) => (
-              <Link
-                key={scan.id}
-                to={`/analysis/${scan.id}`}
-                state={{ 
-                  analysis: scan.analysis_result, 
-                  productName: scan.product_name,
-                  imageUrl: scan.input_image
-                }}
-                className="group bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all border-2 border-[#005144]/30 hover:border-[#005144] flex flex-col justify-between min-h-[320px] relative overflow-hidden"
-              >
-                <div>
-                  <div className="flex justify-between items-start mb-6">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${scan.overall_verdict === 'safe' ? 'bg-emerald-100 text-emerald-700' :
-                      scan.overall_verdict === 'limit' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                      {scan.overall_verdict || 'ANALYZED'}
-                    </span>
-                    <span className="text-xs text-[#3e4946] font-medium opacity-60">
-                      {new Date(scan.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
+            {filteredScans.map((scan) => {
+              const normalizedVerdict = normalizeVerdict(scan);
+              const verdictLabel = normalizedVerdict === 'at-risk'
+                ? 'AT RISK'
+                : normalizedVerdict === 'safe'
+                  ? 'SAFE'
+                  : normalizedVerdict === 'limit'
+                    ? 'LIMIT'
+                    : (scan.overall_verdict || 'ANALYZED').toUpperCase();
 
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#f2fcf9] flex items-center justify-center text-[#005144] group-hover:scale-110 transition-transform border border-[#005144]/5">
-                      <span className="material-symbols-outlined text-2xl">
-                        {scan.input_method === 'barcode' ? 'barcode' :
-                          scan.input_method === 'image' ? 'upload_file' :
-                            scan.input_method === 'voice' ? 'mic' : 'edit_note'}
+              return (
+                <Link
+                  key={scan.id}
+                  to={`/analysis/${scan.id}`}
+                  state={{
+                    analysis: scan.analysis_result,
+                    productName: scan.product_name,
+                    imageUrl: scan.input_image
+                  }}
+                  className="group bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all border-2 border-[#005144]/30 hover:border-[#005144] flex flex-col justify-between min-h-[320px] relative overflow-hidden"
+                >
+                  <div>
+                    <div className="flex justify-between items-start mb-6">
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase ${normalizedVerdict === 'safe' ? 'bg-emerald-100 text-emerald-700' :
+                        normalizedVerdict === 'limit' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                        {verdictLabel}
+                      </span>
+                      <span className="text-xs text-[#3e4946] font-medium opacity-60">
+                        {new Date(scan.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-black text-[#141d1c] tracking-tight mb-0.5 line-clamp-1 max-w-full sm:max-w-[200px]">
-                        {scan.product_name || `${scan.input_method.toUpperCase()} SCAN`}
-                      </h3>
-                      <p className="text-[10px] text-[#005144] font-bold uppercase tracking-widest">
-                        ID: {scan.id.slice(0, 8)} | {scan.input_method.toUpperCase()}
-                      </p>
-                    </div>
-                  </div>
 
-                  <p className="text-sm text-[#3e4946] line-clamp-3 leading-relaxed mb-6">
-                    {scan.analysis_result?.healthImpact?.personalizedSummary || scan.analysis_result?.adviceCard?.primaryAdvice || "Clinical assessment completed via 9-agent pipeline."}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-6 border-t border-[#005144]/5">
-                  <div className="flex -space-x-3">
-                    {[1, 2, 3].map(j => (
-                      <div key={j} className="w-7 h-7 rounded-full border-2 border-white bg-emerald-50 overflow-hidden">
-                        <img src={`https://i.pravatar.cc/100?u=${scan.id}${j}`} alt="agent" className="w-full h-full object-cover opacity-80" />
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-[#f2fcf9] flex items-center justify-center text-[#005144] group-hover:scale-110 transition-transform border border-[#005144]/5">
+                        <span className="material-symbols-outlined text-2xl">
+                          {scan.input_method === 'barcode' ? 'barcode' :
+                            scan.input_method === 'image' ? 'upload_file' :
+                              scan.input_method === 'voice' ? 'mic' : 'edit_note'}
+                        </span>
                       </div>
-                    ))}
+                      <div>
+                        <h3 className="text-lg font-black text-[#141d1c] tracking-tight mb-0.5 line-clamp-1 max-w-full sm:max-w-[200px]">
+                          {scan.product_name || `${scan.input_method.toUpperCase()} SCAN`}
+                        </h3>
+                        <p className="text-[10px] text-[#005144] font-bold uppercase tracking-widest">
+                          ID: {scan.id.slice(0, 8)} | {scan.input_method.toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-[#3e4946] line-clamp-3 leading-relaxed mb-6">
+                      {scan.analysis_result?.healthImpact?.personalizedSummary || scan.analysis_result?.adviceCard?.primaryAdvice || "Clinical assessment completed via 9-agent pipeline."}
+                    </p>
                   </div>
-                  <span className="text-[#005144] text-xs font-black flex items-center gap-1 group-hover:translate-x-1 transition-transform uppercase tracking-wider">
-                    View Report <span className="material-symbols-outlined text-sm">arrow_right_alt</span>
-                  </span>
-                </div>
-              </Link>
-            ))}
+
+                  <div className="flex items-center justify-between pt-6 border-t border-[#005144]/5">
+                    <div className="flex -space-x-3">
+                      {[1, 2, 3].map(j => (
+                        <div key={j} className="w-7 h-7 rounded-full border-2 border-white bg-emerald-50 overflow-hidden">
+                          <img src={`https://i.pravatar.cc/100?u=${scan.id}${j}`} alt="agent" className="w-full h-full object-cover opacity-80" />
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-[#005144] text-xs font-black flex items-center gap-1 group-hover:translate-x-1 transition-transform uppercase tracking-wider">
+                      View Report <span className="material-symbols-outlined text-sm">arrow_right_alt</span>
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
+          ) : (
+            <div className="text-center py-20 bg-surface-container-low rounded-3xl border border-primary/10">
+              <span className="material-symbols-outlined text-5xl text-primary/30 mb-3">filter_alt_off</span>
+              <h3 className="text-xl font-bold text-on-surface mb-2">No Reports Match This Filter</h3>
+              <p className="text-on-surface-variant max-w-md mx-auto">Try changing the status tab or search keyword to view your generated reports.</p>
+            </div>
+          )
         ) : (
           <div className="text-center py-32 bg-surface-container-low rounded-3xl border-2 border-dashed border-primary/10">
             <span className="material-symbols-outlined text-6xl text-primary/20 mb-4">clinical_notes</span>

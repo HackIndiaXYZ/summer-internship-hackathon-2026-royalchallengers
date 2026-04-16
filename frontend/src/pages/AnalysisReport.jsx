@@ -270,7 +270,7 @@ const AnalysisReport = () => {
               <thead className="bg-slate-50/50 border-b border-slate-100">
                 <tr>
                   <th className="px-4 sm:px-6 py-4 text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-widest">Ingredient</th>
-                  <th className="px-4 sm:px-6 py-4 text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-widest text-left">Standard Guideline (WHO/FSAI)</th>
+                  <th className="px-4 sm:px-6 py-4 text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-widest text-left">Standard Guideline (WHO/FSSAI)</th>
                   <th className="px-4 sm:px-6 py-4 text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-widest text-right">Status</th>
                 </tr>
               </thead>
