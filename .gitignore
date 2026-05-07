@@ -46,3 +46,9 @@ coverage/
 # Documentation
 *.md
 !README.md
+
+# Uploaded files
+backend/uploads/
+
+# Zip archives
+*.zip
